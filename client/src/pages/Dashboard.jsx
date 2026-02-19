@@ -1,0 +1,210 @@
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { TrendingUp, CheckCircle, Award, Zap, BarChart3 } from 'lucide-react';
+
+const Dashboard = () => {
+    const { currentUser } = useAuth();
+    const [stats, setStats] = useState({
+        completedTasks: 0,
+        pendingTasks: 0,
+        streak: 0,
+        score: 0,
+    });
+    const [insight, setInsight] = useState(null);
+    const [graphData, setGraphData] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            try {
+                console.log("[DASHBOARD] Fetching data...");
+                const [tasksRes, aiRes] = await Promise.all([
+                    api.get('/tasks').catch(e => ({ data: [] })),
+                    api.get('/ai/insights').catch(e => ({ data: { insight: "AI Service unavailable", productivity_score: 0 } }))
+                ]);
+
+                const tasks = tasksRes.data || [];
+                const completed = tasks.filter(t => t.is_completed).length;
+                const pending = tasks.length - completed;
+
+                // Initialize with empty graph data if no history exists
+                const initialGraphData = [
+                    { name: 'Mon', completion: 0 },
+                    { name: 'Tue', completion: 0 },
+                    { name: 'Wed', completion: 0 },
+                    { name: 'Thu', completion: 0 },
+                    { name: 'Fri', completion: 0 },
+                    { name: 'Sat', completion: 0 },
+                    { name: 'Sun', completion: 0 },
+                ];
+
+                setStats({
+                    completedTasks: completed,
+                    pendingTasks: pending,
+                    streak: 0,
+                    score: completed * 10,
+                    achievements: 0
+                });
+
+                setGraphData(initialGraphData);
+                setInsight(aiRes.data);
+                console.log("[DASHBOARD] Data loaded successfully");
+
+            } catch (error) {
+                console.error("[DASHBOARD] Error fetching dashboard data", error);
+                setError("Failed to load dashboard data. Please try again.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDashboardData();
+    }, []);
+
+    if (loading) return (
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+            <h2>Loading your progress...</h2>
+        </div>
+    );
+
+    if (error) return (
+        <div style={{ padding: '2rem', color: 'red', textAlign: 'center' }}>
+            <h2>Error</h2>
+            <p>{error}</p>
+        </div>
+    );
+
+    const hasData = stats.completedTasks > 0 || stats.pendingTasks > 0;
+
+    return (
+        <div className="space-y-8">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Welcome back, {currentUser?.username}</h1>
+                    <p className="text-muted-foreground mt-1">
+                        {hasData ? "Here's your daily evolution report." : "Ready to start your journey? Add some tasks to begin."}
+                    </p>
+                </div>
+                <div className="flex gap-2">
+                    <span className="bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
+                        <Zap size={16} /> Level 1 Beginner
+                    </span>
+                </div>
+            </header>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard
+                    title="Consistency Streak"
+                    value={`${stats.streak} Days`}
+                    icon={TrendingUp}
+                    trend="Start your streak today!"
+                    color="text-green-500"
+                />
+                <StatCard
+                    title="Tasks Completed"
+                    value={stats.completedTasks}
+                    icon={CheckCircle}
+                    trend={`${stats.pendingTasks} pending`}
+                    color="text-blue-500"
+                />
+                <StatCard
+                    title="Efficiency Score"
+                    value={stats.score}
+                    icon={Zap}
+                    trend="New Account"
+                    color="text-yellow-500"
+                />
+                <StatCard
+                    title="Achievements"
+                    value={stats.achievements || 0}
+                    icon={Award}
+                    trend="Unlock badges soon"
+                    color="text-purple-500"
+                />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 bg-card p-6 rounded-xl border border-border shadow-sm min-h-[400px]">
+                    <h3 className="text-lg font-semibold mb-6">Weekly Performance</h3>
+                    <div className="h-[300px] w-full flex items-center justify-center">
+                        {hasData ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={graphData}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border) / 0.3)" />
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'gray' }} dy={10} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: 'gray' }} />
+                                    <Tooltip
+                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                        cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+                                    />
+                                    <Bar dataKey="completion" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="text-center text-muted-foreground">
+                                <BarChart3 size={48} className="mx-auto mb-4 opacity-20" />
+                                <p>No performance data available yet.</p>
+                                <p className="text-sm">Complete your first task to see the magic!</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-xl shadow-lg text-white relative overflow-hidden">
+                        <div className="relative z-10">
+                            <h3 className="text-lg font-bold flex items-center gap-2 mb-3">
+                                <Zap className="fill-current text-yellow-300" /> AI Insight
+                            </h3>
+                            <p className="text-indigo-100 leading-relaxed">
+                                {hasData
+                                    ? (insight?.insight || "Analyzing your patterns...")
+                                    : "I'll start providing insights once you've logged your first few tasks and goals."}
+                            </p>
+                            <div className="mt-4 pt-4 border-t border-white/20 flex justify-between items-center">
+                                <span className="text-xs font-medium bg-white/20 px-2 py-1 rounded">Productivity: {hasData ? insight?.productivity_score : 0}%</span>
+                                <span className="text-xs text-indigo-200">System Ready</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-card p-6 rounded-xl border border-border">
+                        <h3 className="text-lg font-semibold mb-4">Focus Areas</h3>
+                        {hasData ? (
+                            <ul className="space-y-3">
+                                {['Deep Work Session', 'Task Management', 'Learning'].map((item, i) => (
+                                    <li key={i} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors cursor-pointer">
+                                        <span className="text-sm font-medium">{item}</span>
+                                        <div className="h-2 w-2 rounded-full bg-primary"></div>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="text-sm text-muted-foreground italic">Add goals to generate focus areas.</p>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const StatCard = ({ title, value, icon: Icon, trend, color }) => (
+    <div className="bg-card p-6 rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow">
+        <div className="flex justify-between items-start mb-4">
+            <div className={`p-2 rounded-lg bg-opacity-10 ${color.replace('text-', 'bg-')}`}>
+                <Icon className={color} size={24} />
+            </div>
+            <span className="text-xs font-medium text-muted-foreground bg-secondary px-2 py-1 rounded-full">{trend}</span>
+        </div>
+        <div>
+            <h4 className="text-muted-foreground text-sm font-medium">{title}</h4>
+            <div className="text-2xl font-bold mt-1 text-foreground">{value}</div>
+        </div>
+    </div>
+);
+
+export default Dashboard;
