@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
     // Configure axios defaults
     const api = axios.create({
         baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-        timeout: 5000,
+        timeout: 60000, // Increased to 60s for Render cold starts
     });
 
     api.interceptors.request.use((config) => {
