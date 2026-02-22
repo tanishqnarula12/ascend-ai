@@ -76,18 +76,30 @@ We will use **Render** for the Database and Node.js Server because it offers a f
 
 ---
 
-## 4️⃣ Step 4: Deploy Frontend (Netlify)
-1.  Log in to **Netlify**.
-2.  Click **Add new site** > **Import from existing project**.
-3.  Select **GitHub** and choose your repo (`ascend-ai`).
-4.  **Base directory**: `client`
-5.  **Build command**: `npm run build`
-6.  **Publish directory**: `dist`
-7.  **Environment Variables** (Click "Show advanced" or go to Site Settings after):
-    *   Key: `VITE_API_URL`
-    *   Value: *Your Backend URL from Step 2B* (e.g., `https://ascend-server.onrender.com/api`) 
-    *   *(Note: Ensure you add `/api` at the end if your backend routes are prefixed with it, looking at `client/src/services/api.js`, it expects the base URL).*
-8.  Click **Deploy site**.
+## 4️⃣ Step 4: Deploy Frontend (Vercel - Recommended)
+Since Netlify had some permission issues, we'll use **Vercel** which is excellent for Vite projects.
+
+1.  Log in to **[Vercel](https://vercel.com/)**.
+2.  Click **"Add New"** > **"Project"**.
+3.  Connect your GitHub repo (`ascend-ai`).
+4.  In the configuration:
+    *   **Framework Preset**: Vite
+    *   **Root Directory**: `client` (Very important!)
+    *   **Build Command**: `npm run build`
+    *   **Output Directory**: `dist`
+5.  **Environment Variables**:
+    *   Add **Key**: `VITE_API_URL`
+    *   Add **Value**: *Your Backend URL from Step 2B* (e.g., `https://ascend-server.onrender.com/api`)
+6.  Click **"Deploy"**.
+
+---
+
+## 4️⃣ Alternative: Deploy Frontend (Netlify)
+If you still want to use Netlify:
+1.  **Base directory**: `client`
+2.  **Build command**: `npm run build`
+3.  **Publish directory**: `dist`
+4.  **Environment Variables**: add `VITE_API_URL`.
 
 ---
 
