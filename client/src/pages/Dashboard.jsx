@@ -3,10 +3,12 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Heatmap from '../components/Heatmap';
+import BadgeModal from '../components/BadgeModal';
 import { AlertCircle, Zap, TrendingUp, CheckCircle, Award, BarChart3, Clock, Flame } from 'lucide-react';
 
 const Dashboard = () => {
     const { currentUser } = useAuth();
+    const [isBadgeModalOpen, setIsBadgeModalOpen] = useState(false);
     const [stats, setStats] = useState({
         completedTasks: 0,
         pendingTasks: 0,
@@ -165,13 +167,15 @@ const Dashboard = () => {
                             trend="Streak"
                             color="text-green-500"
                         />
-                        <StatCard
-                            title="Badges"
-                            value={stats.achievements || 0}
-                            icon={Award}
-                            trend="Collection"
-                            color="text-purple-500"
-                        />
+                        <div onClick={() => setIsBadgeModalOpen(true)} className="cursor-pointer group">
+                            <StatCard
+                                title="Badges"
+                                value={stats.achievements || 0}
+                                icon={Award}
+                                trend="View Collection"
+                                color="text-purple-500"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -250,6 +254,11 @@ const Dashboard = () => {
                     </div>
                 </div>
             </div>
+            <BadgeModal
+                isOpen={isBadgeModalOpen}
+                onClose={() => setIsBadgeModalOpen(false)}
+                stats={stats}
+            />
         </div>
     );
 };
