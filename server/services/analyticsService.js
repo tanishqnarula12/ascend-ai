@@ -1,5 +1,4 @@
 import { query } from '../config/db.js';
-import fetch from 'node-fetch';
 
 export const calculateConsistencyScore = async (userId) => {
     try {
