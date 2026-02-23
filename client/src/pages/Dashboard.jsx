@@ -11,6 +11,7 @@ const Dashboard = () => {
         pendingTasks: 0,
         streak: 0,
         score: 0,
+        focusAreas: []
     });
     const [insight, setInsight] = useState(null);
     const [graphData, setGraphData] = useState([]);
@@ -38,7 +39,8 @@ const Dashboard = () => {
                     pendingTasks: pending,
                     streak: analytics.streak || 0,
                     score: completed * 10,
-                    achievements: Math.floor(completed / 5)
+                    achievements: Math.floor(completed / 5),
+                    focusAreas: analytics.focusAreas || []
                 });
 
                 setGraphData(analytics.graphData && analytics.graphData.length > 0
@@ -177,17 +179,17 @@ const Dashboard = () => {
 
                     <div className="bg-card p-6 rounded-xl border border-border">
                         <h3 className="text-lg font-semibold mb-4">Focus Areas</h3>
-                        {hasData ? (
+                        {stats.focusAreas && stats.focusAreas.length > 0 ? (
                             <ul className="space-y-3">
-                                {['Deep Work Session', 'Task Management', 'Learning'].map((item, i) => (
+                                {stats.focusAreas.map((area, i) => (
                                     <li key={i} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors cursor-pointer">
-                                        <span className="text-sm font-medium">{item}</span>
+                                        <span className="text-sm font-medium">{area.name}</span>
                                         <div className="h-2 w-2 rounded-full bg-primary"></div>
                                     </li>
                                 ))}
                             </ul>
                         ) : (
-                            <p className="text-sm text-muted-foreground italic">Add goals to generate focus areas.</p>
+                            <p className="text-sm text-muted-foreground italic">Add goals with categories to see focus areas.</p>
                         )}
                     </div>
                 </div>

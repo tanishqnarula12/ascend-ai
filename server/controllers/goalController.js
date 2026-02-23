@@ -106,9 +106,25 @@ export const getAnalytics = async (req, res) => {
 
         const streak = streakRes.rows.length > 0 ? parseInt(streakRes.rows[0].streak) : 0;
 
+        // Calculate focus areas based on goal categories
+        const focusAreasRes = await query(
+            `SELECT category as name, COUNT(*) as count
+             FROM goals
+             WHERE user_id = $1 AND status = 'in-progress'
+             GROUP BY category
+             ORDER BY count DESC
+             LIMIT 3`,
+            [req.user.id]
+        );
+
         res.json({
             graphData: finalData,
-            streak: streak
+            streak: streak,
+            focusAreas: focusAreasRes.rows.length > 0 ? focusAreasRes.rows : [
+                { name: 'Deep Work' },
+                { name: 'Task Management' },
+                { name: 'General Growth' }
+            ]
         });
     } catch (error) {
         console.error(error);
