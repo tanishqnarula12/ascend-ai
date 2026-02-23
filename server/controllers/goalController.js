@@ -55,3 +55,63 @@ export const deleteGoal = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+
+export const getAnalytics = async (req, res) => {
+    try {
+        const result = await query(
+            `SELECT 
+        TO_CHAR(completed_at, 'Dy') as day,
+        COUNT(*) as completion
+      FROM tasks 
+      WHERE user_id = $1 
+        AND is_completed = true 
+        AND completed_at >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY TO_CHAR(completed_at, 'Dy'), DATE(completed_at)
+      ORDER BY DATE(completed_at) ASC`,
+            [req.user.id]
+        );
+
+        // Map short days to full list
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const dataMap = result.rows.reduce((acc, row) => {
+            acc[row.day] = parseInt(row.completion);
+            return acc;
+        }, {});
+
+        const finalData = days.map(d => ({
+            name: d,
+            completion: dataMap[d] || 0
+        }));
+
+        // Calculate streak (consecutive days with at least one task)
+        const streakRes = await query(
+            `WITH DailyCompletions AS (
+                SELECT DISTINCT DATE(completed_at) as completed_date
+                FROM tasks
+                WHERE user_id = $1 AND is_completed = true
+            ),
+            StreakCalc AS (
+                SELECT 
+                    completed_date,
+                    completed_date - (ROW_NUMBER() OVER (ORDER BY completed_date))::integer as group_id
+                FROM DailyCompletions
+            )
+            SELECT COUNT(*) as streak
+            FROM StreakCalc
+            GROUP BY group_id
+            ORDER BY streak DESC
+            LIMIT 1`,
+            [req.user.id]
+        );
+
+        const streak = streakRes.rows.length > 0 ? parseInt(streakRes.rows[0].streak) : 0;
+
+        res.json({
+            graphData: finalData,
+            streak: streak
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};

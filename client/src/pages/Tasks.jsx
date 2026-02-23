@@ -12,7 +12,7 @@ const Tasks = () => {
 
     const fetchTasks = async () => {
         try {
-            const res = await api.get('/tasks');
+            const res = await api.get('/tasks?today=true');
             setTasks(res.data);
         } catch (error) {
             console.error("Failed to fetch tasks");
@@ -153,8 +153,8 @@ const Tasks = () => {
                     <div
                         key={task.id}
                         className={`group flex items-center justify-between p-4 rounded-xl border transition-all duration-200 ${task.is_completed
-                                ? 'bg-secondary/30 border-transparent opacity-60'
-                                : 'bg-card border-border hover:border-primary/50 hover:shadow-sm'
+                            ? 'bg-secondary/30 border-transparent opacity-60'
+                            : 'bg-card border-border hover:border-primary/50 hover:shadow-sm'
                             }`}
                     >
                         <div className="flex items-center gap-4 flex-1">
@@ -172,8 +172,8 @@ const Tasks = () => {
                                 </p>
                                 <div className="flex items-center gap-2 mt-1">
                                     <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${task.difficulty === 'hard' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                            task.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
-                                                'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                        task.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                                            'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                         }`}>
                                         {task.difficulty}
                                     </span>

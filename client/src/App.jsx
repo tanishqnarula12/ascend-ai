@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Goals from './pages/Goals';
 import Tasks from './pages/Tasks';
+import Analytics from './pages/Analytics';
 import Layout from './components/Layout';
 
 const ProtectedLayout = () => {
@@ -35,7 +36,7 @@ function App() {
                         <Route path="/dashboard" element={<Dashboard />} />
                         <Route path="/goals" element={<Goals />} />
                         <Route path="/tasks" element={<Tasks />} />
-                        <Route path="/analytics" element={<div className="p-8 text-center text-muted-foreground">Analytics Page Coming Soon</div>} />
+                        <Route path="/analytics" element={<Analytics />} />
                     </Route>
 
                     {/* Catch-all redirect to login */}

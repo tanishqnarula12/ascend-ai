@@ -21,35 +21,39 @@ const Dashboard = () => {
         const fetchDashboardData = async () => {
             try {
                 console.log("[DASHBOARD] Fetching data...");
-                const [tasksRes, aiRes] = await Promise.all([
-                    api.get('/tasks').catch(e => ({ data: [] })),
-                    api.get('/ai/insights').catch(e => ({ data: { insight: "AI Service unavailable", productivity_score: 0 } }))
+                const [tasksRes, aiRes, analyticsRes] = await Promise.all([
+                    api.get('/tasks?today=true').catch(e => ({ data: [] })),
+                    api.get('/ai/insights').catch(e => ({ data: { insight: "AI Service unavailable", productivity_score: 0 } })),
+                    api.get('/goals/analytics').catch(e => ({ data: { graphData: [], streak: 0 } }))
                 ]);
 
                 const tasks = tasksRes.data || [];
                 const completed = tasks.filter(t => t.is_completed).length;
                 const pending = tasks.length - completed;
 
-                // Initialize with empty graph data if no history exists
-                const initialGraphData = [
-                    { name: 'Mon', completion: 0 },
-                    { name: 'Tue', completion: 0 },
-                    { name: 'Wed', completion: 0 },
-                    { name: 'Thu', completion: 0 },
-                    { name: 'Fri', completion: 0 },
-                    { name: 'Sat', completion: 0 },
-                    { name: 'Sun', completion: 0 },
-                ];
+                const analytics = analyticsRes.data;
 
                 setStats({
                     completedTasks: completed,
                     pendingTasks: pending,
-                    streak: 0,
+                    streak: analytics.streak || 0,
                     score: completed * 10,
-                    achievements: 0
+                    achievements: Math.floor(completed / 5)
                 });
 
-                setGraphData(initialGraphData);
+                setGraphData(analytics.graphData && analytics.graphData.length > 0
+                    ? analytics.graphData
+                    : [
+                        { name: 'Mon', completion: 0 },
+                        { name: 'Tue', completion: 0 },
+                        { name: 'Wed', completion: 0 },
+                        { name: 'Thu', completion: 0 },
+                        { name: 'Fri', completion: 0 },
+                        { name: 'Sat', completion: 0 },
+                        { name: 'Sun', completion: 0 },
+                    ]
+                );
+
                 setInsight(aiRes.data);
                 console.log("[DASHBOARD] Data loaded successfully");
 

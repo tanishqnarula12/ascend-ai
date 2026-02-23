@@ -1,8 +1,17 @@
 import { query } from '../config/db.js';
 
 export const getTasks = async (req, res) => {
+    const { today } = req.query;
     try {
-        const tasks = await query('SELECT * FROM tasks WHERE user_id = $1 ORDER BY due_date ASC', [req.user.id]);
+        let queryStr = 'SELECT * FROM tasks WHERE user_id = $1';
+        let params = [req.user.id];
+
+        if (today === 'true') {
+            queryStr += ' AND due_date = CURRENT_DATE';
+        }
+
+        queryStr += ' ORDER BY created_at ASC';
+        const tasks = await query(queryStr, params);
         res.json(tasks.rows);
     } catch (error) {
         console.error(error);
@@ -16,8 +25,13 @@ export const createTask = async (req, res) => {
     try {
         const newTask = await query(
             'INSERT INTO tasks (user_id, goal_id, title, difficulty, due_date) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [req.user.id, goal_id, title, difficulty, due_date]
+            [req.user.id, goal_id, title, difficulty, due_date || new Date()]
         );
+
+        if (goal_id) {
+            await updateGoalProgress(goal_id, req.user.id);
+        }
+
         res.status(201).json(newTask.rows[0]);
     } catch (error) {
         console.error(error);
@@ -30,15 +44,12 @@ export const updateTask = async (req, res) => {
     const { title, is_completed, difficulty } = req.body;
 
     try {
-        // If completed, update completed_at
-        const completedAt = is_completed ? new Date() : null;
-
         const updatedTask = await query(
             `UPDATE tasks 
        SET title = COALESCE($1, title), 
            is_completed = COALESCE($2, is_completed), 
            difficulty = COALESCE($3, difficulty),
-           completed_at = CASE WHEN $2 = true THEN NOW() ELSE completed_at END
+           completed_at = CASE WHEN $2 = true THEN NOW() ELSE NULL END
        WHERE id = $4 AND user_id = $5 RETURNING *`,
             [title, is_completed, difficulty, id, req.user.id]
         );
@@ -47,7 +58,12 @@ export const updateTask = async (req, res) => {
             return res.status(404).json({ message: 'Task not found' });
         }
 
-        res.json(updatedTask.rows[0]);
+        const task = updatedTask.rows[0];
+        if (task.goal_id) {
+            await updateGoalProgress(task.goal_id, req.user.id);
+        }
+
+        res.json(task);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
@@ -61,9 +77,34 @@ export const deleteTask = async (req, res) => {
         if (result.rows.length === 0) {
             return res.status(404).json({ message: 'Task not found' });
         }
+
+        const task = result.rows[0];
+        if (task.goal_id) {
+            await updateGoalProgress(task.goal_id, req.user.id);
+        }
+
         res.json({ message: 'Task deleted' });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// Helper function to update goal progress
+const updateGoalProgress = async (goalId, userId) => {
+    try {
+        const tasks = await query('SELECT is_completed FROM tasks WHERE goal_id = $1 AND user_id = $2', [goalId, userId]);
+        if (tasks.rows.length === 0) {
+            await query('UPDATE goals SET progress = 0 WHERE id = $1', [goalId]);
+            return;
+        }
+
+        const completed = tasks.rows.filter(t => t.is_completed).length;
+        const total = tasks.rows.length;
+        const progress = Math.round((completed / total) * 100);
+
+        await query('UPDATE goals SET progress = $1 WHERE id = $2', [progress, goalId]);
+    } catch (error) {
+        console.error("Error updating goal progress:", error);
     }
 };
