@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Plus, Calendar, CheckSquare, Square, Trash2, ArrowRight, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
 const Tasks = () => {
+    const { refreshUser } = useAuth();
     const [tasks, setTasks] = useState([]);
     const [goals, setGoals] = useState([]);
     const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -68,6 +70,11 @@ const Tasks = () => {
             await api.put(`/tasks/${task.id}`, {
                 is_completed: !task.is_completed
             });
+
+            // Refresh user XP/Level data
+            if (!task.is_completed) {
+                refreshUser();
+            }
         } catch (error) {
             console.error("Failed to update task");
             fetchTasks(); // Revert on error

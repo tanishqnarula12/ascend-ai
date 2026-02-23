@@ -80,10 +80,16 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const logout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setCurrentUser(null);
+    const refreshUser = async () => {
+        try {
+            const response = await api.get('/auth/profile');
+            const user = response.data;
+            setCurrentUser(user);
+            localStorage.setItem('user', JSON.stringify(user));
+            return user;
+        } catch (error) {
+            console.error("[AUTH] Refresh failed:", error);
+        }
     };
 
     const value = {
@@ -91,6 +97,7 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         logout,
+        refreshUser,
         api
     };
 

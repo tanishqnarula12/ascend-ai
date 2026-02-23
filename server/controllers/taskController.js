@@ -1,4 +1,5 @@
 import { query } from '../config/db.js';
+import { updateGoalProgress } from './goalController.js';
 
 export const getTasks = async (req, res) => {
     const { today } = req.query;
@@ -44,6 +45,8 @@ export const updateTask = async (req, res) => {
     const { title, is_completed, difficulty } = req.body;
 
     try {
+        const previousTask = await query('SELECT is_completed FROM tasks WHERE id = $1', [id]);
+
         const updatedTask = await query(
             `UPDATE tasks 
        SET title = COALESCE($1, title), 
@@ -63,8 +66,8 @@ export const updateTask = async (req, res) => {
             await updateGoalProgress(task.goal_id, req.user.id);
         }
 
-        // Award XP if completed
-        if (is_completed) {
+        // Award XP if JUST completed
+        if (is_completed === true && previousTask.rows[0].is_completed === false) {
             let xpAmt = 10;
             if (task.difficulty === 'medium') xpAmt = 25;
             if (task.difficulty === 'hard') xpAmt = 60;
@@ -106,21 +109,4 @@ export const deleteTask = async (req, res) => {
     }
 };
 
-// Helper function to update goal progress
-const updateGoalProgress = async (goalId, userId) => {
-    try {
-        const tasks = await query('SELECT is_completed FROM tasks WHERE goal_id = $1 AND user_id = $2', [goalId, userId]);
-        if (tasks.rows.length === 0) {
-            await query('UPDATE goals SET progress = 0 WHERE id = $1', [goalId]);
-            return;
-        }
 
-        const completed = tasks.rows.filter(t => t.is_completed).length;
-        const total = tasks.rows.length;
-        const progress = Math.round((completed / total) * 100);
-
-        await query('UPDATE goals SET progress = $1 WHERE id = $2', [progress, goalId]);
-    } catch (error) {
-        console.error("Error updating goal progress:", error);
-    }
-};

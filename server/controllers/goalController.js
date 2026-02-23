@@ -169,3 +169,40 @@ export const getAnalytics = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+export const updateGoalProgress = async (goalId, userId) => {
+    try {
+        const stats = await query(
+            `SELECT 
+                COUNT(*) as total,
+                COUNT(*) FILTER (WHERE is_completed = true) as completed
+             FROM tasks WHERE goal_id = $1 AND user_id = $2`,
+            [goalId, userId]
+        );
+
+        const { total, completed } = stats.rows[0];
+        const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+        const previousGoal = await query('SELECT status FROM goals WHERE id = $1', [goalId]);
+
+        await query(
+            `UPDATE goals SET progress = $1, 
+             status = CASE WHEN $1 = 100 THEN 'completed' ELSE 'in-progress' END 
+             WHERE id = $2`,
+            [progress, goalId]
+        );
+
+        // Award massive XP if goal JUST completed
+        if (progress === 100 && previousGoal.rows[0].status !== 'completed') {
+            await query('UPDATE users SET xp = xp + 200 WHERE id = $1', [userId]);
+
+            // Level up check
+            const user = await query('SELECT xp, level FROM users WHERE id = $1', [userId]);
+            const nextLevelXP = user.rows[0].level * 500;
+            if (user.rows[0].xp >= nextLevelXP) {
+                await query('UPDATE users SET level = level + 1 WHERE id = $1', [userId]);
+            }
+        }
+    } catch (error) {
+        console.error("Error updating goal progress:", error);
+    }
+};
