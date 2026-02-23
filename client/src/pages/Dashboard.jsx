@@ -14,6 +14,7 @@ const Dashboard = () => {
         focusAreas: []
     });
     const [insight, setInsight] = useState(null);
+    const [briefing, setBriefing] = useState(null);
     const [graphData, setGraphData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -22,10 +23,11 @@ const Dashboard = () => {
         const fetchDashboardData = async () => {
             try {
                 console.log("[DASHBOARD] Fetching data...");
-                const [tasksRes, aiRes, analyticsRes] = await Promise.all([
+                const [tasksRes, aiRes, analyticsRes, briefingRes] = await Promise.all([
                     api.get('/tasks?today=true').catch(e => ({ data: [] })),
                     api.get('/ai/insights').catch(e => ({ data: { insight: "AI Service unavailable", productivity_score: 0 } })),
-                    api.get('/goals/analytics').catch(e => ({ data: { graphData: [], streak: 0 } }))
+                    api.get('/goals/analytics').catch(e => ({ data: { graphData: [], streak: 0 } })),
+                    api.get('/ai/briefing').catch(e => ({ data: { briefing: "Focus on your goals today." } }))
                 ]);
 
                 const tasks = tasksRes.data || [];
@@ -57,6 +59,7 @@ const Dashboard = () => {
                 );
 
                 setInsight(aiRes.data);
+                setBriefing(briefingRes.data);
                 console.log("[DASHBOARD] Data loaded successfully");
 
             } catch (error) {
@@ -87,49 +90,71 @@ const Dashboard = () => {
 
     return (
         <div className="space-y-8">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                <div className="flex-1">
                     <h1 className="text-3xl font-bold tracking-tight">Welcome back, {currentUser?.username}</h1>
                     <p className="text-muted-foreground mt-1">
                         {hasData ? "Here's your daily evolution report." : "Ready to start your journey? Add some tasks to begin."}
                     </p>
                 </div>
-                <div className="flex gap-2">
-                    <span className="bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
-                        <Zap size={16} /> Level 1 Beginner
-                    </span>
+
+                <div className="w-full md:w-64 bg-card border border-border p-4 rounded-xl shadow-sm">
+                    <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Level {currentUser?.level || 1}</span>
+                        <span className="text-xs font-medium text-primary">{currentUser?.xp || 0} / {(currentUser?.level || 1) * 500} XP</span>
+                    </div>
+                    <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-gradient-to-r from-primary to-indigo-500 transition-all duration-1000 ease-out"
+                            style={{ width: `${Math.min(((currentUser?.xp || 0) / ((currentUser?.level || 1) * 500)) * 100, 100)}%` }}
+                        ></div>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-2 text-center uppercase tracking-tighter">
+                        {500 * (currentUser?.level || 1) - (currentUser?.xp || 0)} XP to next rank
+                    </p>
                 </div>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard
-                    title="Consistency Streak"
-                    value={`${stats.streak} Days`}
-                    icon={TrendingUp}
-                    trend="Start your streak today!"
-                    color="text-green-500"
-                />
-                <StatCard
-                    title="Tasks Completed"
-                    value={stats.completedTasks}
-                    icon={CheckCircle}
-                    trend={`${stats.pendingTasks} pending`}
-                    color="text-blue-500"
-                />
-                <StatCard
-                    title="Efficiency Score"
-                    value={stats.score}
-                    icon={Zap}
-                    trend="New Account"
-                    color="text-yellow-500"
-                />
-                <StatCard
-                    title="Achievements"
-                    value={stats.achievements || 0}
-                    icon={Award}
-                    trend="Unlock badges soon"
-                    color="text-purple-500"
-                />
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div className="lg:col-span-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <StatCard
+                            title="Streak"
+                            value={`${stats.streak} Days`}
+                            icon={TrendingUp}
+                            trend="Consistency"
+                            color="text-green-500"
+                        />
+                        <StatCard
+                            title="Daily Score"
+                            value={stats.score}
+                            icon={Zap}
+                            trend="Level Speed"
+                            color="text-yellow-500"
+                        />
+                        <StatCard
+                            title="Badges"
+                            value={stats.achievements || 0}
+                            icon={Award}
+                            trend="Collection"
+                            color="text-purple-500"
+                        />
+                    </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-primary/10 to-indigo-500/10 border border-primary/20 p-6 rounded-2xl shadow-inner relative overflow-hidden group hover:shadow-lg transition-all">
+                    <div className="absolute -right-4 -top-4 bg-primary/5 w-24 h-24 rounded-full blur-2xl group-hover:bg-primary/20 transition-all"></div>
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-primary mb-2 flex items-center gap-2">
+                        <Zap size={14} className="fill-primary" /> Today's Game Plan
+                    </h3>
+                    <p className="text-sm font-semibold leading-relaxed text-foreground/90">
+                        {briefing?.briefing || "Calculate your path to success."}
+                    </p>
+                    <div className="mt-4 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase pb-1 border-b border-border/50">
+                        <span>Priority: {briefing?.focus_priority || 'Standard'}</span>
+                        <span>ETA: {briefing?.estimated_completion || '6 PM'}</span>
+                    </div>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

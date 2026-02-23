@@ -35,6 +35,11 @@ export const updateGoal = async (req, res) => {
         if (updatedGoal.rows.length === 0) {
             return res.status(404).json({ message: 'Goal not found' });
         }
+
+        if (status === 'completed') {
+            await query('UPDATE users SET xp = xp + 250 WHERE id = $1', [req.user.id]);
+        }
+
         res.json(updatedGoal.rows[0]);
     } catch (error) {
         console.error(error);

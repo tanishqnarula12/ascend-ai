@@ -30,10 +30,23 @@ def generate_insights(request: UserRequest):
 @app.post("/predict")
 def predict_success(data: dict):
     # Mock prediction model logic
-    # Real logic would use scikit-learn model loaded from file
     return {
         "success_probability": random.uniform(0.7, 0.99),
         "recommended_difficulty": "Medium"
+    }
+
+@app.post("/briefing")
+def get_daily_briefing(request: UserRequest):
+    templates = [
+        "Today is a high-energy day. Focus on your 'Hard' tasks before 2 PM.",
+        "You have a 3-day streak going! Data suggests you're most productive when finishing small tasks first today.",
+        "Your goal 'Aesthetic Physique' is 80% complete. One final push on training today will trigger a milestone!",
+        "Warning: Wednesday is usually your lowest productivity day. Plan ahead to break the pattern."
+    ]
+    return {
+        "briefing": random.choice(templates),
+        "focus_priority": "Deep Work",
+        "estimated_completion": "6:00 PM"
     }
 
 if __name__ == "__main__":

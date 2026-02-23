@@ -58,3 +58,22 @@ export const predictConsistency = async (req, res) => {
         res.json({ prediction: 0 });
     }
 };
+
+export const getDailyBriefing = async (req, res) => {
+    try {
+        if (!process.env.AI_SERVICE_URL) {
+            return res.json({ briefing: "Start your day with intent." });
+        }
+
+        const response = await fetch(`${process.env.AI_SERVICE_URL}/briefing`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: req.user.id }),
+        });
+
+        const data = await response.json();
+        res.json(data);
+    } catch (error) {
+        res.json({ briefing: "Focus on your most impactful task today." });
+    }
+};

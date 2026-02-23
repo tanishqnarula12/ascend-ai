@@ -30,6 +30,8 @@ export const register = async (req, res) => {
             id: newUser.rows[0].id,
             username: newUser.rows[0].username,
             email: newUser.rows[0].email,
+            xp: 0,
+            level: 1,
             token: generateToken(newUser.rows[0].id),
         });
     } catch (error) {
@@ -55,6 +57,8 @@ export const login = async (req, res) => {
                 id: user.rows[0].id,
                 username: user.rows[0].username,
                 email: user.rows[0].email,
+                xp: user.rows[0].xp || 0,
+                level: user.rows[0].level || 1,
                 token: generateToken(user.rows[0].id),
             });
         } else {
@@ -68,7 +72,7 @@ export const login = async (req, res) => {
 
 export const getProfile = async (req, res) => {
     try {
-        const user = await query('SELECT id, username, email FROM users WHERE id = $1', [req.user.id]);
+        const user = await query('SELECT id, username, email, xp, level FROM users WHERE id = $1', [req.user.id]);
         res.json(user.rows[0]);
     } catch (error) {
         console.error(error);
