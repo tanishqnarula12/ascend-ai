@@ -20,10 +20,14 @@ export const getInsights = async (req, res) => {
         const data = await response.json();
         res.json(data);
     } catch (error) {
-        console.error('AI Service Error:', error);
+        console.error('AI Service Connection Error:', {
+            message: error.message,
+            url: process.env.AI_SERVICE_URL,
+            stack: error.stack
+        });
         // Fallback to neutral data if AI service is down
         res.json({
-            insight: "System is ready. Start logging tasks to see AI-powered suggestions.",
+            insight: "Analyzing your productivity patterns... (AI service is warming up)",
             productivity_score: 0
         });
     }
