@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, CheckSquare, Target, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, Target, BarChart3, FileText } from 'lucide-react';
 
 const MobileNav = () => {
     const navItems = [
@@ -8,6 +8,7 @@ const MobileNav = () => {
         { to: '/goals', label: 'Goals', icon: Target },
         { to: '/tasks', label: 'Tasks', icon: CheckSquare },
         { to: '/analytics', label: 'Stats', icon: BarChart3 },
+        { to: '/reports', label: 'Reports', icon: FileText },
     ];
 
     return (

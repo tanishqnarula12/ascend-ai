@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, CheckCircle, Award, Zap, BarChart3 } from 'lucide-react';
+import Heatmap from '../components/Heatmap';
+import { AlertCircle, Zap, TrendingUp, CheckCircle, Award, BarChart3, Clock, Flame } from 'lucide-react';
 
 const Dashboard = () => {
     const { currentUser } = useAuth();
@@ -11,7 +12,12 @@ const Dashboard = () => {
         pendingTasks: 0,
         streak: 0,
         score: 0,
-        focusAreas: []
+        focusAreas: [],
+        consistencyScore: 0,
+        consistencyTrend: 'stable',
+        burnoutRisk: 'LOW',
+        focusScore: 0,
+        heatmapData: []
     });
     const [insight, setInsight] = useState(null);
     const [briefing, setBriefing] = useState(null);
@@ -23,11 +29,13 @@ const Dashboard = () => {
         const fetchDashboardData = async () => {
             try {
                 console.log("[DASHBOARD] Fetching data...");
-                const [tasksRes, aiRes, analyticsRes, briefingRes] = await Promise.all([
+                const [tasksRes, aiRes, analyticsRes, briefingRes, advAnalyticsRes, focusRes] = await Promise.all([
                     api.get('/tasks?today=true').catch(e => ({ data: [] })),
                     api.get('/ai/insights').catch(e => ({ data: { insight: "AI Service unavailable", productivity_score: 0 } })),
                     api.get('/goals/analytics').catch(e => ({ data: { graphData: [], streak: 0 } })),
-                    api.get('/ai/briefing').catch(e => ({ data: { briefing: "Focus on your goals today." } }))
+                    api.get('/ai/briefing').catch(e => ({ data: { briefing: "Focus on your goals today." } })),
+                    api.get('/ai/advanced-analytics').catch(e => ({ data: { consistency: { score: 0, trend: 'stable' }, burnout: { risk_level: 'LOW' }, heatmap: [] } })),
+                    api.get('/ai/focus/stats').catch(e => ({ data: { focus_score: 0, total_hours: 0 } }))
                 ]);
 
                 const tasks = tasksRes.data || [];
@@ -35,6 +43,8 @@ const Dashboard = () => {
                 const pending = tasks.length - completed;
 
                 const analytics = analyticsRes.data;
+                const adv = advAnalyticsRes.data;
+                const focus = focusRes.data;
 
                 setStats({
                     completedTasks: completed,
@@ -42,7 +52,12 @@ const Dashboard = () => {
                     streak: analytics.streak || 0,
                     score: completed * 10,
                     achievements: Math.floor(completed / 5),
-                    focusAreas: analytics.focusAreas || []
+                    focusAreas: analytics.focusAreas || [],
+                    consistencyScore: adv.consistency?.score || 0,
+                    consistencyTrend: adv.consistency?.trend || 'stable',
+                    burnoutRisk: adv.burnout?.risk_level || 'LOW',
+                    focusScore: focus.focus_score || 0,
+                    heatmapData: adv.heatmap || []
                 });
 
                 setGraphData(analytics.graphData && analytics.graphData.length > 0
@@ -89,7 +104,21 @@ const Dashboard = () => {
     const hasData = stats.completedTasks > 0 || stats.pendingTasks > 0;
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 pb-12">
+            {stats.burnoutRisk === 'HIGH' && (
+                <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    className="bg-destructive/10 border border-destructive/20 p-4 rounded-xl flex items-center gap-4 text-destructive"
+                >
+                    <AlertCircle size={24} />
+                    <div>
+                        <p className="font-bold">High Burnout Risk Detected</p>
+                        <p className="text-sm">You've been pushing hard. Consider reducing "Hard" tasks today to maintain long-term momentum.</p>
+                    </div>
+                </motion.div>
+            )}
+
             <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                 <div className="flex-1">
                     <h1 className="text-3xl font-bold tracking-tight">Welcome back, {currentUser?.username}</h1>
@@ -109,28 +138,32 @@ const Dashboard = () => {
                             style={{ width: `${Math.min(((currentUser?.xp || 0) / ((currentUser?.level || 1) * 500)) * 100, 100)}%` }}
                         ></div>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-2 text-center uppercase tracking-tighter">
-                        {500 * (currentUser?.level || 1) - (currentUser?.xp || 0)} XP to next rank
-                    </p>
                 </div>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="lg:col-span-3">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                         <StatCard
-                            title="Streak"
-                            value={`${stats.streak} Days`}
-                            icon={TrendingUp}
-                            trend="Consistency"
-                            color="text-green-500"
+                            title="Consistency"
+                            value={`${stats.consistencyScore}%`}
+                            icon={Flame}
+                            trend={stats.consistencyTrend === 'up' ? "↑ improving" : "↓ declining"}
+                            color="text-orange-500"
                         />
                         <StatCard
-                            title="Daily Score"
-                            value={stats.score}
-                            icon={Zap}
-                            trend="Level Speed"
-                            color="text-yellow-500"
+                            title="Deep Focus"
+                            value={`${stats.focusScore}/100`}
+                            icon={Clock}
+                            trend="Deep Flow"
+                            color="text-blue-500"
+                        />
+                        <StatCard
+                            title="Daily Streak"
+                            value={`${stats.streak} Days`}
+                            icon={TrendingUp}
+                            trend="Streak"
+                            color="text-green-500"
                         />
                         <StatCard
                             title="Badges"
@@ -150,12 +183,10 @@ const Dashboard = () => {
                     <p className="text-sm font-semibold leading-relaxed text-foreground/90">
                         {briefing?.briefing || "Calculate your path to success."}
                     </p>
-                    <div className="mt-4 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase pb-1 border-b border-border/50">
-                        <span>Priority: {briefing?.focus_priority || 'Standard'}</span>
-                        <span>ETA: {briefing?.estimated_completion || '6 PM'}</span>
-                    </div>
                 </div>
             </div>
+
+            <Heatmap data={stats.heatmapData} />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 bg-card p-6 rounded-xl border border-border shadow-sm min-h-[400px]">
@@ -226,7 +257,7 @@ const Dashboard = () => {
 const StatCard = ({ title, value, icon: Icon, trend, color }) => (
     <div className="bg-card p-6 rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow">
         <div className="flex justify-between items-start mb-4">
-            <div className={`p-2 rounded-lg bg-opacity-10 ${color.replace('text-', 'bg-')}`}>
+            <div className={`p - 2 rounded - lg bg - opacity - 10 ${color.replace('text-', 'bg-')} `}>
                 <Icon className={color} size={24} />
             </div>
             <span className="text-xs font-medium text-muted-foreground bg-secondary px-2 py-1 rounded-full">{trend}</span>

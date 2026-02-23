@@ -1,5 +1,38 @@
 import { query } from '../config/db.js';
 
+export const getReports = async (req, res) => {
+    try {
+        const reports = await query(
+            'SELECT * FROM weekly_reports WHERE user_id = $1 ORDER BY start_date DESC',
+            [req.user.id]
+        );
+
+        // If no reports, generate one for demo
+        if (reports.rows.length === 0) {
+            const aiReport = await fetch(`${process.env.AI_SERVICE_URL}/weekly-report`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: req.user.username, completion_rate: 65 })
+            });
+            const data = await aiReport.json();
+
+            const newReport = await query(
+                `INSERT INTO weekly_reports 
+                 (user_id, start_date, end_date, completion_rate, burnout_risk, ai_summary, focus_hours)
+                 VALUES ($1, CURRENT_DATE - INTERVAL '7 days', CURRENT_DATE, $2, $3, $4, $5)
+                 RETURNING *`,
+                [req.user.id, 65, data.burnout_risk, data.ai_summary, data.focus_hours]
+            );
+            return res.json([newReport.rows[0]]);
+        }
+
+        res.json(reports.rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 export const getGoals = async (req, res) => {
     try {
         const goals = await query('SELECT * FROM goals WHERE user_id = $1 ORDER BY created_at DESC', [req.user.id]);

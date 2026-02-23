@@ -57,3 +57,45 @@ CREATE TABLE IF NOT EXISTS ai_insights (
     content TEXT NOT NULL,
     generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Focus Sessions
+CREATE TABLE IF NOT EXISTS focus_sessions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    start_time TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    end_time TIMESTAMP WITH TIME ZONE,
+    duration_minutes INTEGER,
+    distractions_count INTEGER DEFAULT 0,
+    linked_task_id INTEGER REFERENCES tasks(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Consistency Scores
+CREATE TABLE IF NOT EXISTS consistency_scores (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    score INTEGER NOT NULL,
+    trend VARCHAR(10), -- 'up', 'down', 'stable'
+    captured_at DATE DEFAULT CURRENT_DATE,
+    UNIQUE(user_id, captured_at)
+);
+
+-- Weekly Reports
+CREATE TABLE IF NOT EXISTS weekly_reports (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    completion_rate DECIMAL,
+    strongest_goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL,
+    weakest_goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL,
+    burnout_risk VARCHAR(20),
+    ai_summary TEXT,
+    focus_hours DECIMAL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexing for performance
+CREATE INDEX IF NOT EXISTS idx_tasks_user_date ON tasks(user_id, due_date);
+CREATE INDEX IF NOT EXISTS idx_focus_sessions_user ON focus_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_daily_logs_user_date ON daily_logs(user_id, log_date);

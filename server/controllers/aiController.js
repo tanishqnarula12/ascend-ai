@@ -1,3 +1,25 @@
+import { query } from '../config/db.js';
+import { calculateConsistencyScore, getBurnoutRisk, getHeatmapData } from '../services/analyticsService.js';
+
+export const getAdvancedAnalytics = async (req, res) => {
+    try {
+        const [consistency, burnout, heatmap] = await Promise.all([
+            calculateConsistencyScore(req.user.id),
+            getBurnoutRisk(req.user.id),
+            getHeatmapData(req.user.id)
+        ]);
+
+        res.json({
+            consistency,
+            burnout,
+            heatmap
+        });
+    } catch (error) {
+        console.error("Advanced Analytics Error:", error);
+        res.status(500).json({ message: "Error fetching advanced analytics" });
+    }
+};
+
 export const getInsights = async (req, res) => {
     try {
         // Mock data if AI service is not running

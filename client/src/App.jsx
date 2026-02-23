@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Goals from './pages/Goals';
 import Tasks from './pages/Tasks';
 import Analytics from './pages/Analytics';
+import Reports from './pages/Reports';
 import Layout from './components/Layout';
 
 const ProtectedLayout = () => {
@@ -37,6 +38,7 @@ function App() {
                         <Route path="/goals" element={<Goals />} />
                         <Route path="/tasks" element={<Tasks />} />
                         <Route path="/analytics" element={<Analytics />} />
+                        <Route path="/reports" element={<Reports />} />
                     </Route>
 
                     {/* Catch-all redirect to login */}
