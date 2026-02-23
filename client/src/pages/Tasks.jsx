@@ -85,6 +85,7 @@ const Tasks = () => {
         try {
             await api.delete(`/tasks/${id}`);
             setTasks(tasks.filter(t => t.id !== id));
+            refreshUser();
         } catch (error) {
             console.error("Failed to delete task");
         }

@@ -4,6 +4,7 @@ import api from '../services/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Heatmap from '../components/Heatmap';
 import BadgeModal from '../components/BadgeModal';
+import { motion } from 'framer-motion';
 import { AlertCircle, Zap, TrendingUp, CheckCircle, Award, BarChart3, Clock, Flame } from 'lucide-react';
 
 const Dashboard = () => {
@@ -266,7 +267,7 @@ const Dashboard = () => {
 const StatCard = ({ title, value, icon: Icon, trend, color }) => (
     <div className="bg-card p-6 rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow">
         <div className="flex justify-between items-start mb-4">
-            <div className={`p - 2 rounded - lg bg - opacity - 10 ${color.replace('text-', 'bg-')} `}>
+            <div className={`p-2 rounded-lg bg-opacity-10 ${color.replace('text-', 'bg-')}`}>
                 <Icon className={color} size={24} />
             </div>
             <span className="text-xs font-medium text-muted-foreground bg-secondary px-2 py-1 rounded-full">{trend}</span>

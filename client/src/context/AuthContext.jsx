@@ -80,6 +80,12 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const logout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setCurrentUser(null);
+    };
+
     const refreshUser = async () => {
         try {
             const response = await api.get('/auth/profile');

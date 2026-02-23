@@ -45,16 +45,25 @@ export const updateTask = async (req, res) => {
     const { title, is_completed, difficulty } = req.body;
 
     try {
-        const previousTask = await query('SELECT is_completed FROM tasks WHERE id = $1', [id]);
+        const previousTaskRes = await query('SELECT goal_id, is_completed FROM tasks WHERE id = $1', [id]);
+        if (previousTaskRes.rows.length === 0) {
+            return res.status(404).json({ message: 'Task not found' });
+        }
+        const previousTask = previousTaskRes.rows[0];
 
         const updatedTask = await query(
             `UPDATE tasks 
        SET title = COALESCE($1, title), 
            is_completed = COALESCE($2, is_completed), 
            difficulty = COALESCE($3, difficulty),
-           completed_at = CASE WHEN $2 = true THEN NOW() ELSE NULL END
-       WHERE id = $4 AND user_id = $5 RETURNING *`,
-            [title, is_completed, difficulty, id, req.user.id]
+           goal_id = COALESCE($4, goal_id),
+           completed_at = CASE 
+               WHEN $2 IS NULL THEN completed_at
+               WHEN $2 = true THEN NOW() 
+               ELSE NULL 
+           END
+       WHERE id = $5 AND user_id = $6 RETURNING *`,
+            [title, is_completed, difficulty, req.body.goal_id, id, req.user.id]
         );
 
         if (updatedTask.rows.length === 0) {
@@ -62,12 +71,18 @@ export const updateTask = async (req, res) => {
         }
 
         const task = updatedTask.rows[0];
+
+        // Update current goal
         if (task.goal_id) {
             await updateGoalProgress(task.goal_id, req.user.id);
         }
+        // Update old goal if it changed
+        if (previousTask.goal_id && previousTask.goal_id !== task.goal_id) {
+            await updateGoalProgress(previousTask.goal_id, req.user.id);
+        }
 
         // Award XP if JUST completed
-        if (is_completed === true && previousTask.rows[0].is_completed === false) {
+        if (is_completed === true && previousTask.is_completed === false) {
             let xpAmt = 10;
             if (task.difficulty === 'medium') xpAmt = 25;
             if (task.difficulty === 'hard') xpAmt = 60;
