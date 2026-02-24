@@ -82,6 +82,23 @@ def detect_burnout(data: dict):
         
     return {"risk_level": risk}
 
+@app.post("/motivation")
+def get_daily_motivation(request: UserRequest):
+    quotes = [
+        "The only way to do great work is to love what you do. – Steve Jobs",
+        "Don't count the days, make the days count. – Muhammad Ali",
+        "The secret of getting ahead is getting started. – Mark Twain",
+        "Your only limit is your mind.",
+        "A year from now you may wish you had started today.",
+        "Discipline is doing what needs to be done, even if you don't want to do it.",
+        "Small steps every day lead to big results.",
+        "Success is not final, failure is not fatal: it is the courage to continue that counts. – Winston Churchill"
+    ]
+    return {
+        "quote": random.choice(quotes),
+        "author": "AscendAI Wisdom"
+    }
+
 @app.post("/weekly-report")
 def generate_weekly_report(data: dict):
     user_name = data.get('username', 'User')

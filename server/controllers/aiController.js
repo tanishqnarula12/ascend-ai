@@ -100,3 +100,22 @@ export const getDailyBriefing = async (req, res) => {
         res.json({ briefing: "Focus on your most impactful task today." });
     }
 };
+
+export const getMotivation = async (req, res) => {
+    try {
+        if (!process.env.AI_SERVICE_URL) {
+            return res.json({ quote: "Your only limit is your mind.", author: "AscendAI" });
+        }
+
+        const response = await fetchWithTimeout(`${process.env.AI_SERVICE_URL}/motivation`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: req.user.id }),
+        });
+
+        const data = await response.json();
+        res.json(data);
+    } catch (error) {
+        res.json({ quote: "Small steps every day lead to big results.", author: "AscendAI" });
+    }
+};

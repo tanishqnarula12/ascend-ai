@@ -24,6 +24,7 @@ const Dashboard = () => {
     });
     const [insight, setInsight] = useState(null);
     const [briefing, setBriefing] = useState(null);
+    const [motivation, setMotivation] = useState(null);
     const [graphData, setGraphData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -32,13 +33,14 @@ const Dashboard = () => {
         const fetchDashboardData = async () => {
             try {
                 console.log("[DASHBOARD] Fetching data from all components...");
-                const [tasksRes, aiRes, analyticsRes, briefingRes, advAnalyticsRes, focusRes] = await Promise.all([
+                const [tasksRes, aiRes, analyticsRes, briefingRes, advAnalyticsRes, focusRes, motivationRes] = await Promise.all([
                     api.get('/tasks?today=true').then(r => { console.log("Tasks loaded"); return r; }).catch(e => { console.warn("Tasks failed", e); return { data: [] }; }),
                     api.get('/ai/insights').then(r => { console.log("Insights loaded"); return r; }).catch(e => { console.warn("Insights failed", e); return { data: { insight: "AI Service unavailable", productivity_score: 0 } }; }),
                     api.get('/goals/analytics').then(r => { console.log("Analytics loaded"); return r; }).catch(e => { console.warn("Analytics failed", e); return { data: { graphData: [], streak: 0 } }; }),
                     api.get('/ai/briefing').then(r => { console.log("Briefing loaded"); return r; }).catch(e => { console.warn("Briefing failed", e); return { data: { briefing: "Focus on your goals today." } }; }),
                     api.get('/ai/advanced-analytics').then(r => { console.log("Adv Analytics loaded"); return r; }).catch(e => { console.warn("Adv Analytics failed", e); return { data: { consistency: { score: 0, trend: 'stable' }, burnout: { risk_level: 'LOW' }, heatmap: [] } }; }),
-                    api.get('/ai/focus/stats').then(r => { console.log("Focus stats loaded"); return r; }).catch(e => { console.warn("Focus failed", e); return { data: { focus_score: 0, total_hours: 0 } }; })
+                    api.get('/ai/focus/stats').then(r => { console.log("Focus stats loaded"); return r; }).catch(e => { console.warn("Focus failed", e); return { data: { focus_score: 0, total_hours: 0 } }; }),
+                    api.get('/ai/motivation').then(r => { console.log("Motivation loaded"); return r; }).catch(e => { console.warn("Motivation failed", e); return { data: { quote: "Your only limit is your mind.", author: "AscendAI" } }; })
                 ]);
 
                 const tasks = tasksRes?.data || [];
@@ -89,6 +91,7 @@ const Dashboard = () => {
 
                 setInsight(aiRes?.data);
                 setBriefing(briefingRes?.data);
+                setMotivation(motivationRes?.data);
                 console.log("[DASHBOARD] Data loaded successfully");
 
             } catch (error) {
@@ -141,6 +144,29 @@ const Dashboard = () => {
                     </p>
                 </div>
             </header>
+
+            {/* Daily Motivation Card */}
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="relative overflow-hidden bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-pink-600/10 border border-primary/20 p-8 rounded-3xl"
+            >
+                <div className="absolute top-0 right-0 p-4 opacity-5">
+                    <Zap size={120} />
+                </div>
+                <div className="relative z-10 flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
+                    <div className="p-4 bg-white dark:bg-zinc-900 rounded-2xl shadow-xl">
+                        <Flame className="text-orange-500 fill-orange-500" size={32} />
+                    </div>
+                    <div>
+                        <h2 className="text-sm font-bold uppercase tracking-widest text-primary mb-1">Daily Motivation</h2>
+                        <blockquote className="text-xl md:text-2xl font-semibold italic text-foreground leading-relaxed">
+                            "{motivation?.quote || "The secret of getting ahead is getting started."}"
+                        </blockquote>
+                        <cite className="block mt-2 text-sm font-medium text-muted-foreground">— {motivation?.author || "AscendAI Wisdom"}</cite>
+                    </div>
+                </div>
+            </motion.div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="lg:col-span-3">
