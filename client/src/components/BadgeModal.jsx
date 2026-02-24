@@ -26,7 +26,7 @@ const BadgeModal = ({ isOpen, onClose, stats }) => {
             description: 'Complete 10 total tasks.',
             icon: CheckCircle,
             color: 'text-blue-500',
-            earned: stats.completedTasks >= 10
+            earned: stats.totalTasks >= 10
         },
         {
             id: 'hard_work',
@@ -34,7 +34,7 @@ const BadgeModal = ({ isOpen, onClose, stats }) => {
             description: 'Complete a "Hard" difficulty task.',
             icon: Shield,
             color: 'text-red-500',
-            earned: stats.completedTasks > 0 // Placeholder logic, could be more specific
+            earned: stats.totalTasks > 0 // Placeholder logic, could be more specific
         },
         {
             id: 'consistency_80',
@@ -92,8 +92,8 @@ const BadgeModal = ({ isOpen, onClose, stats }) => {
                                 <div
                                     key={badge.id}
                                     className={`p-4 rounded-2xl border transition-all duration-300 flex items-center gap-4 ${badge.earned
-                                            ? 'bg-secondary/50 border-primary/20 shadow-sm'
-                                            : 'bg-secondary/10 border-transparent grayscale opacity-40'
+                                        ? 'bg-secondary/50 border-primary/20 shadow-sm'
+                                        : 'bg-secondary/10 border-transparent grayscale opacity-40'
                                         }`}
                                 >
                                     <div className={`p-3 rounded-xl bg-card border border-border ${badge.earned ? 'shadow-inner' : ''}`}>

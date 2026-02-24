@@ -45,16 +45,27 @@ const Dashboard = () => {
                 const completed = tasks.filter(t => t.is_completed).length;
                 const pending = tasks.length - completed;
 
-                const analytics = analyticsRes?.data || { graphData: [], streak: 0 };
+                const analytics = analyticsRes?.data || { graphData: [], streak: 0, totalTasks: 0 };
                 const adv = advAnalyticsRes?.data || { consistency: { score: 0 }, burnout: { risk_level: 'LOW' }, heatmap: [] };
                 const focus = focusRes?.data || { focus_score: 0 };
+
+                const totalCompleted = analytics.totalTasks || 0;
+                const earnedBadges = [
+                    true, // Pioneer
+                    analytics.streak >= 3, // On Fire
+                    totalCompleted >= 10, // Decimal Decimation
+                    totalCompleted >= 1, // Titan
+                    adv.consistency?.score >= 80, // Clockwork
+                    focus.focus_score >= 90 // Zen State
+                ].filter(Boolean).length;
 
                 setStats({
                     completedTasks: completed,
                     pendingTasks: pending,
+                    totalTasks: totalCompleted,
                     streak: analytics.streak || 0,
                     score: completed * 10,
-                    achievements: Math.floor(completed / 5),
+                    achievements: earnedBadges,
                     focusAreas: analytics.focusAreas || [],
                     consistencyScore: adv.consistency?.score || 0,
                     consistencyTrend: adv.consistency?.trend || 'stable',
@@ -122,50 +133,23 @@ const Dashboard = () => {
                 </motion.div>
             )}
 
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="flex-1">
                     <h1 className="text-3xl font-bold tracking-tight">Welcome back, {currentUser?.username}</h1>
-                    <p className="text-muted-foreground mt-1">
-                        {hasData ? "Here's your daily evolution report." : "Ready to start your journey? Add some tasks to begin."}
+                    <p className="text-muted-foreground mt-1 text-lg">
+                        {hasData ? "Great to see you again. Here is your progress." : "Ready to start your journey? Add some tasks to begin."}
                     </p>
-                </div>
-
-                <div className="w-full md:w-64 bg-card border border-border p-4 rounded-xl shadow-sm">
-                    <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Level {currentUser?.level || 1}</span>
-                        <span className="text-xs font-medium text-primary">{currentUser?.xp || 0} / {(currentUser?.level || 1) * 500} XP</span>
-                    </div>
-                    <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-                        <div
-                            className="h-full bg-gradient-to-r from-primary to-indigo-500 transition-all duration-1000 ease-out"
-                            style={{ width: `${Math.min(((currentUser?.xp || 0) / ((currentUser?.level || 1) * 500)) * 100, 100)}%` }}
-                        ></div>
-                    </div>
                 </div>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="lg:col-span-3">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <StatCard
-                            title="Consistency"
-                            value={`${stats.consistencyScore}%`}
-                            icon={Flame}
-                            trend={stats.consistencyTrend === 'up' ? "↑ improving" : "↓ declining"}
-                            color="text-orange-500"
-                        />
-                        <StatCard
-                            title="Deep Focus"
-                            value={`${stats.focusScore}/100`}
-                            icon={Clock}
-                            trend="Deep Flow"
-                            color="text-blue-500"
-                        />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <StatCard
                             title="Daily Streak"
                             value={`${stats.streak} Days`}
                             icon={TrendingUp}
-                            trend="Streak"
+                            trend="Consistency"
                             color="text-green-500"
                         />
                         <div onClick={() => setIsBadgeModalOpen(true)} className="cursor-pointer group">
@@ -177,6 +161,13 @@ const Dashboard = () => {
                                 color="text-purple-500"
                             />
                         </div>
+                        <StatCard
+                            title="Total Progress"
+                            value={hasData ? `${Math.round((stats.completedTasks / (stats.completedTasks + stats.pendingTasks)) * 100)}%` : "0%"}
+                            icon={CheckCircle}
+                            trend="Completed"
+                            color="text-blue-500"
+                        />
                     </div>
                 </div>
 
@@ -232,8 +223,10 @@ const Dashboard = () => {
                                     : "I'll start providing insights once you've logged your first few tasks and goals."}
                             </p>
                             <div className="mt-4 pt-4 border-t border-white/20 flex justify-between items-center">
-                                <span className="text-xs font-medium bg-white/20 px-2 py-1 rounded">Productivity: {hasData ? insight?.productivity_score : 0}%</span>
-                                <span className="text-xs text-indigo-200">System Ready</span>
+                                <span className="text-xs font-medium bg-white/20 px-2 py-1 rounded">
+                                    Productivity: {(hasData && insight?.productivity_score > 0) ? `${insight.productivity_score}%` : "Analyzing..."}
+                                </span>
+                                <span className="text-xs text-indigo-200">AI Synced</span>
                             </div>
                         </div>
                     </div>

@@ -81,22 +81,7 @@ export const updateTask = async (req, res) => {
             await updateGoalProgress(previousTask.goal_id, req.user.id);
         }
 
-        // Award XP if JUST completed
-        if (is_completed === true && previousTask.is_completed === false) {
-            let xpAmt = 10;
-            if (task.difficulty === 'medium') xpAmt = 25;
-            if (task.difficulty === 'hard') xpAmt = 60;
-
-            await query('UPDATE users SET xp = xp + $1 WHERE id = $2', [xpAmt, req.user.id]);
-
-            // Level up check
-            const user = await query('SELECT xp, level FROM users WHERE id = $1', [req.user.id]);
-            const nextLevelXP = user.rows[0].level * 500;
-            if (user.rows[0].xp >= nextLevelXP) {
-                await query('UPDATE users SET level = level + 1 WHERE id = $1', [req.user.id]);
-            }
-        }
-
+        // XP logic removed per user request
         res.json(task);
     } catch (error) {
         console.error(error);

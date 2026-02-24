@@ -50,7 +50,7 @@ export const getInsights = async (req, res) => {
         });
         // Fallback to neutral data if AI service is down
         res.json({
-            insight: "Analyzing your productivity patterns... (AI service is warming up)",
+            insight: "Keep up the momentum! You're doing great.",
             productivity_score: 0
         });
     }

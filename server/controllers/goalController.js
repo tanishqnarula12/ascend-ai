@@ -155,9 +155,16 @@ export const getAnalytics = async (req, res) => {
             [req.user.id]
         );
 
+        const totalTasksRes = await query(
+            'SELECT COUNT(*) FROM tasks WHERE user_id = $1 AND is_completed = true',
+            [req.user.id]
+        );
+        const totalTasks = parseInt(totalTasksRes.rows[0].count);
+
         res.json({
             graphData: finalData,
             streak: streak,
+            totalTasks: totalTasks,
             focusAreas: focusAreasRes.rows.length > 0 ? focusAreasRes.rows : [
                 { name: 'Deep Work' },
                 { name: 'Task Management' },
@@ -191,17 +198,7 @@ export const updateGoalProgress = async (goalId, userId) => {
             [progress, goalId]
         );
 
-        // Award massive XP if goal JUST completed
-        if (progress === 100 && previousGoal.rows[0].status !== 'completed') {
-            await query('UPDATE users SET xp = xp + 200 WHERE id = $1', [userId]);
-
-            // Level up check
-            const user = await query('SELECT xp, level FROM users WHERE id = $1', [userId]);
-            const nextLevelXP = user.rows[0].level * 500;
-            if (user.rows[0].xp >= nextLevelXP) {
-                await query('UPDATE users SET level = level + 1 WHERE id = $1', [userId]);
-            }
-        }
+        // XP bonus logic removed per user request
     } catch (error) {
         console.error("Error updating goal progress:", error);
     }
