@@ -1,5 +1,6 @@
 import { query } from '../config/db.js';
 import { calculateConsistencyScore, getBurnoutRisk, getHeatmapData } from '../services/analyticsService.js';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout.js';
 
 export const getAdvancedAnalytics = async (req, res) => {
     try {
@@ -27,7 +28,7 @@ export const getInsights = async (req, res) => {
             return res.json({ message: "AI Service URL not configured", insight: "Keep going! Consistency is key." });
         }
 
-        const response = await fetch(`${process.env.AI_SERVICE_URL}/insights`, {
+        const response = await fetchWithTimeout(`${process.env.AI_SERVICE_URL}/insights`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -61,7 +62,7 @@ export const predictConsistency = async (req, res) => {
             return res.json({ prediction: 75 });
         }
 
-        const response = await fetch(`${process.env.AI_SERVICE_URL}/predict`, {
+        const response = await fetchWithTimeout(`${process.env.AI_SERVICE_URL}/predict`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -87,7 +88,7 @@ export const getDailyBriefing = async (req, res) => {
             return res.json({ briefing: "Start your day with intent." });
         }
 
-        const response = await fetch(`${process.env.AI_SERVICE_URL}/briefing`, {
+        const response = await fetchWithTimeout(`${process.env.AI_SERVICE_URL}/briefing`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id: req.user.id }),

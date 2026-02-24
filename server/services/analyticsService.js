@@ -1,4 +1,5 @@
 import { query } from '../config/db.js';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout.js';
 
 export const calculateConsistencyScore = async (userId) => {
     try {
@@ -32,7 +33,7 @@ export const calculateConsistencyScore = async (userId) => {
         const streak = parseInt(streakRes.rows[0].streak) || 0;
 
         // Call AI Service
-        const aiResponse = await fetch(`${process.env.AI_SERVICE_URL}/consistency`, {
+        const aiResponse = await fetchWithTimeout(`${process.env.AI_SERVICE_URL}/consistency`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -73,7 +74,7 @@ export const getBurnoutRisk = async (userId) => {
         const hardRatio = (tasks.filter(t => t.difficulty === 'hard').length / (tasks.length || 1)) * 100;
         const completionRate = (tasks.filter(t => t.is_completed).length / (tasks.length || 1)) * 100;
 
-        const aiResponse = await fetch(`${process.env.AI_SERVICE_URL}/burnout`, {
+        const aiResponse = await fetchWithTimeout(`${process.env.AI_SERVICE_URL}/burnout`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

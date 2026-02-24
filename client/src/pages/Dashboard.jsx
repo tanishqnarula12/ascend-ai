@@ -31,23 +31,23 @@ const Dashboard = () => {
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                console.log("[DASHBOARD] Fetching data...");
+                console.log("[DASHBOARD] Fetching data from all components...");
                 const [tasksRes, aiRes, analyticsRes, briefingRes, advAnalyticsRes, focusRes] = await Promise.all([
-                    api.get('/tasks?today=true').catch(e => ({ data: [] })),
-                    api.get('/ai/insights').catch(e => ({ data: { insight: "AI Service unavailable", productivity_score: 0 } })),
-                    api.get('/goals/analytics').catch(e => ({ data: { graphData: [], streak: 0 } })),
-                    api.get('/ai/briefing').catch(e => ({ data: { briefing: "Focus on your goals today." } })),
-                    api.get('/ai/advanced-analytics').catch(e => ({ data: { consistency: { score: 0, trend: 'stable' }, burnout: { risk_level: 'LOW' }, heatmap: [] } })),
-                    api.get('/ai/focus/stats').catch(e => ({ data: { focus_score: 0, total_hours: 0 } }))
+                    api.get('/tasks?today=true').then(r => { console.log("Tasks loaded"); return r; }).catch(e => { console.warn("Tasks failed", e); return { data: [] }; }),
+                    api.get('/ai/insights').then(r => { console.log("Insights loaded"); return r; }).catch(e => { console.warn("Insights failed", e); return { data: { insight: "AI Service unavailable", productivity_score: 0 } }; }),
+                    api.get('/goals/analytics').then(r => { console.log("Analytics loaded"); return r; }).catch(e => { console.warn("Analytics failed", e); return { data: { graphData: [], streak: 0 } }; }),
+                    api.get('/ai/briefing').then(r => { console.log("Briefing loaded"); return r; }).catch(e => { console.warn("Briefing failed", e); return { data: { briefing: "Focus on your goals today." } }; }),
+                    api.get('/ai/advanced-analytics').then(r => { console.log("Adv Analytics loaded"); return r; }).catch(e => { console.warn("Adv Analytics failed", e); return { data: { consistency: { score: 0, trend: 'stable' }, burnout: { risk_level: 'LOW' }, heatmap: [] } }; }),
+                    api.get('/ai/focus/stats').then(r => { console.log("Focus stats loaded"); return r; }).catch(e => { console.warn("Focus failed", e); return { data: { focus_score: 0, total_hours: 0 } }; })
                 ]);
 
-                const tasks = tasksRes.data || [];
+                const tasks = tasksRes?.data || [];
                 const completed = tasks.filter(t => t.is_completed).length;
                 const pending = tasks.length - completed;
 
-                const analytics = analyticsRes.data;
-                const adv = advAnalyticsRes.data;
-                const focus = focusRes.data;
+                const analytics = analyticsRes?.data || { graphData: [], streak: 0 };
+                const adv = advAnalyticsRes?.data || { consistency: { score: 0 }, burnout: { risk_level: 'LOW' }, heatmap: [] };
+                const focus = focusRes?.data || { focus_score: 0 };
 
                 setStats({
                     completedTasks: completed,
@@ -76,13 +76,13 @@ const Dashboard = () => {
                     ]
                 );
 
-                setInsight(aiRes.data);
-                setBriefing(briefingRes.data);
+                setInsight(aiRes?.data);
+                setBriefing(briefingRes?.data);
                 console.log("[DASHBOARD] Data loaded successfully");
 
             } catch (error) {
-                console.error("[DASHBOARD] Error fetching dashboard data", error);
-                setError("Failed to load dashboard data. Please try again.");
+                console.error("[DASHBOARD] Critical Error:", error);
+                setError("Failed to load dashboard data. Our AI sync might be slow, please refresh.");
             } finally {
                 setLoading(false);
             }
