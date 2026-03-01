@@ -1,4 +1,5 @@
 import { query } from '../config/db.js';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout.js';
 
 export const getReports = async (req, res) => {
     try {
@@ -7,23 +8,79 @@ export const getReports = async (req, res) => {
             [req.user.id]
         );
 
-        // If no reports, generate one for demo
+        let generateNew = false;
+
         if (reports.rows.length === 0) {
-            const aiReport = await fetch(`${process.env.AI_SERVICE_URL}/weekly-report`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: req.user.username, completion_rate: 65 })
-            });
-            const data = await aiReport.json();
+            generateNew = true;
+        } else {
+            const latestReportObj = reports.rows[0];
+            const end = new Date(latestReportObj.end_date);
+            const now = new Date();
+            const diffDays = Math.floor((now - end) / (1000 * 60 * 60 * 24));
+            // Trigger new report generation if it's been 7 days since the last end_date
+            if (diffDays >= 7) {
+                generateNew = true;
+            }
+        }
+
+        if (generateNew) {
+            // Actual Weekly Stats
+            const tasksRes = await query(
+                `SELECT is_completed, difficulty FROM tasks 
+                 WHERE user_id = $1 AND (created_at >= CURRENT_DATE - INTERVAL '7 days' OR completed_at >= CURRENT_DATE - INTERVAL '7 days')`,
+                [req.user.id]
+            );
+
+            const tasks = tasksRes.rows;
+            const completed = tasks.filter(t => t.is_completed).length;
+            const completionRate = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
+            const focusHoursEstimate = tasks.filter(t => t.difficulty === 'hard' && t.is_completed).length * 1.5;
+
+            // Optional: determine strongest/weakest goal based on progress
+            const goalsRes = await query(
+                `SELECT title, progress FROM goals WHERE user_id = $1 AND status = 'in-progress' ORDER BY progress DESC`,
+                [req.user.id]
+            );
+            const strongest = goalsRes.rows.length > 0 ? goalsRes.rows[0].title : null;
+            const weakest = goalsRes.rows.length > 1 ? goalsRes.rows[goalsRes.rows.length - 1].title : null;
+
+            let aiData = {
+                ai_summary: `You completed ${completionRate}% of your tasks this week! Keep up the consistency.`,
+                burnout_risk: "LOW"
+            };
+
+            if (process.env.AI_SERVICE_URL) {
+                try {
+                    const aiReportRes = await fetchWithTimeout(`${process.env.AI_SERVICE_URL}/weekly-report`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            username: req.user.username,
+                            completion_rate: completionRate
+                        })
+                    });
+                    aiData = await aiReportRes.json();
+                } catch (e) {
+                    console.warn("AI Report generation failed, using fallback.", e);
+                }
+            }
 
             const newReport = await query(
                 `INSERT INTO weekly_reports 
-                 (user_id, start_date, end_date, completion_rate, burnout_risk, ai_summary, focus_hours)
-                 VALUES ($1, CURRENT_DATE - INTERVAL '7 days', CURRENT_DATE, $2, $3, $4, $5)
+                 (user_id, start_date, end_date, completion_rate, burnout_risk, ai_summary, focus_hours, strongest_goal, weakest_goal)
+                 VALUES ($1, CURRENT_DATE - INTERVAL '7 days', CURRENT_DATE, $2, $3, $4, $5, $6, $7)
                  RETURNING *`,
-                [req.user.id, 65, data.burnout_risk, data.ai_summary, data.focus_hours]
+                [
+                    req.user.id,
+                    completionRate,
+                    aiData.burnout_risk || "LOW",
+                    aiData.ai_summary || "Great work this week!",
+                    Math.round(focusHoursEstimate),
+                    strongest,
+                    weakest
+                ]
             );
-            return res.json([newReport.rows[0]]);
+            return res.json([newReport.rows[0], ...reports.rows]);
         }
 
         res.json(reports.rows);
