@@ -8,10 +8,20 @@ export const getReports = async (req, res) => {
             [req.user.id]
         );
 
+        // Total Tasks ever completed (Progress till date)
+        const totalRes = await query(
+            'SELECT COUNT(*) as count FROM tasks WHERE user_id = $1 AND is_completed = true',
+            [req.user.id]
+        );
+        const totalCompletedEver = parseInt(totalRes.rows[0].count);
+
         let generateNew = false;
 
         if (reports.rows.length === 0) {
-            generateNew = true;
+            // Activate AI reports page if the user has consistency of even 1 day (at least 1 completed task)
+            if (totalCompletedEver > 0) {
+                generateNew = true;
+            }
         } else {
             const latestReportObj = reports.rows[0];
             const end = new Date(latestReportObj.end_date);
@@ -45,7 +55,7 @@ export const getReports = async (req, res) => {
             const weakest = goalsRes.rows.length > 1 ? goalsRes.rows[goalsRes.rows.length - 1].title : null;
 
             let aiData = {
-                ai_summary: `You completed ${completionRate}% of your tasks this week! Keep up the consistency.`,
+                ai_summary: `You completed ${completionRate}% of your tasks this week! Lifetime progress: ${totalCompletedEver} tasks. Keep up the consistency.`,
                 burnout_risk: "LOW"
             };
 
@@ -56,7 +66,8 @@ export const getReports = async (req, res) => {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             username: req.user.username,
-                            completion_rate: completionRate
+                            completion_rate: completionRate,
+                            total_tasks_completed: totalCompletedEver
                         })
                     });
                     aiData = await aiReportRes.json();
@@ -67,17 +78,18 @@ export const getReports = async (req, res) => {
 
             const newReport = await query(
                 `INSERT INTO weekly_reports 
-                 (user_id, start_date, end_date, completion_rate, burnout_risk, ai_summary, focus_hours, strongest_goal, weakest_goal)
-                 VALUES ($1, CURRENT_DATE - INTERVAL '7 days', CURRENT_DATE, $2, $3, $4, $5, $6, $7)
+                 (user_id, start_date, end_date, completion_rate, burnout_risk, ai_summary, focus_hours, strongest_goal, weakest_goal, total_tasks_completed)
+                 VALUES ($1, CURRENT_DATE - INTERVAL '7 days', CURRENT_DATE, $2, $3, $4, $5, $6, $7, $8)
                  RETURNING *`,
                 [
                     req.user.id,
                     completionRate,
                     aiData.burnout_risk || "LOW",
-                    aiData.ai_summary || "Great work this week!",
+                    aiData.ai_summary || `Great work this week! Lifetime progress: ${totalCompletedEver} tasks.`,
                     Math.round(focusHoursEstimate),
                     strongest,
-                    weakest
+                    weakest,
+                    totalCompletedEver
                 ]
             );
             return res.json([newReport.rows[0], ...reports.rows]);
