@@ -11,6 +11,7 @@ const Tasks = () => {
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [selectedGoal, setSelectedGoal] = useState('');
     const [difficulty, setDifficulty] = useState('medium');
+    const [taskType, setTaskType] = useState('temporary');
     const [celebrate, setCelebrate] = useState(null);
 
     const fetchTasks = async () => {
@@ -45,6 +46,7 @@ const Tasks = () => {
                 title: newTaskTitle,
                 goal_id: selectedGoal || null,
                 difficulty,
+                type: taskType,
                 due_date: new Date().toISOString().split('T')[0] // Today
             });
             setNewTaskTitle('');
@@ -146,6 +148,14 @@ const Tasks = () => {
                             <option value="easy">Easy</option>
                             <option value="medium">Medium</option>
                             <option value="hard">Hard</option>
+                        </select>
+                        <select
+                            value={taskType}
+                            onChange={(e) => setTaskType(e.target.value)}
+                            className="bg-secondary text-sm rounded-lg px-3 py-2 border-none focus:ring-2 focus:ring-primary w-full md:w-32 font-medium"
+                        >
+                            <option value="temporary">Temporary</option>
+                            <option value="permanent">Permanent Task</option>
                         </select>
                         <button type="submit" className="bg-primary text-primary-foreground p-2 rounded-lg hover:bg-primary/90 transition-colors">
                             <Plus size={20} />

@@ -22,12 +22,24 @@ CREATE TABLE IF NOT EXISTS goals (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tasks Table (Daily actionable items linked to goals)
+-- Habits Table (Permanent Tasks templates)
+CREATE TABLE IF NOT EXISTS habits (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    difficulty VARCHAR(10) CHECK (difficulty IN ('easy', 'medium', 'hard')),
+    goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tasks Table (Daily actionable items linked to goals/habits)
 CREATE TABLE IF NOT EXISTS tasks (
     id SERIAL PRIMARY KEY,
     goal_id INTEGER REFERENCES goals(id) ON DELETE CASCADE,
+    habit_id INTEGER REFERENCES habits(id) ON DELETE CASCADE,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
+    type VARCHAR(20) DEFAULT 'temporary' CHECK (type IN ('temporary', 'permanent')),
     difficulty VARCHAR(10) CHECK (difficulty IN ('easy', 'medium', 'hard')),
     is_completed BOOLEAN DEFAULT FALSE,
     due_date DATE DEFAULT CURRENT_DATE,

@@ -26,6 +26,7 @@ const Dashboard = () => {
     const [briefing, setBriefing] = useState(null);
     const [motivation, setMotivation] = useState(null);
     const [graphData, setGraphData] = useState([]);
+    const [weeklyHabits, setWeeklyHabits] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -40,7 +41,8 @@ const Dashboard = () => {
                     api.get('/ai/briefing').then(r => { console.log("Briefing loaded"); return r; }).catch(e => { console.warn("Briefing failed", e); return { data: { briefing: "Focus on your goals today." } }; }),
                     api.get('/ai/advanced-analytics').then(r => { console.log("Adv Analytics loaded"); return r; }).catch(e => { console.warn("Adv Analytics failed", e); return { data: { consistency: { score: 0, trend: 'stable' }, burnout: { risk_level: 'LOW' }, heatmap: [] } }; }),
                     api.get('/ai/focus/stats').then(r => { console.log("Focus stats loaded"); return r; }).catch(e => { console.warn("Focus failed", e); return { data: { focus_score: 0, total_hours: 0 } }; }),
-                    api.get('/ai/motivation').then(r => { console.log("Motivation loaded"); return r; }).catch(e => { console.warn("Motivation failed", e); return { data: { quote: "Your only limit is your mind.", author: "AscendAI" } }; })
+                    api.get('/ai/motivation').then(r => { console.log("Motivation loaded"); return r; }).catch(e => { console.warn("Motivation failed", e); return { data: { quote: "Your only limit is your mind.", author: "AscendAI" } }; }),
+                    api.get('/tasks/habits/weekly').then(r => { console.log("Habits loaded"); return r; }).catch(e => { console.warn("Habits failed", e); return { data: [] }; })
                 ]);
 
                 const tasks = tasksRes?.data || [];
@@ -92,6 +94,7 @@ const Dashboard = () => {
                 setInsight(aiRes?.data);
                 setBriefing(briefingRes?.data);
                 setMotivation(motivationRes?.data);
+                setWeeklyHabits(habitsRes?.data || []);
                 console.log("[DASHBOARD] Data loaded successfully");
 
             } catch (error) {
@@ -208,7 +211,68 @@ const Dashboard = () => {
                 </div>
             </div>
 
-            <Heatmap data={stats.heatmapData} />
+            {/* Weekly Habits Grid (Replaced Heatmap) */}
+            <div className="bg-card p-6 rounded-xl border border-border shadow-sm overflow-x-auto">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <CheckCircle className="text-green-500" size={20} /> Permanent Task Tracker
+                </h3>
+                {weeklyHabits && weeklyHabits.length > 0 ? (
+                    <div className="min-w-[600px]">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr>
+                                    <th className="p-3 border-b border-border font-medium text-muted-foreground">Task ↴</th>
+                                    {/* Generate last 7 days headers */}
+                                    {[6, 5, 4, 3, 2, 1, 0].map(daysAgo => {
+                                        const d = new Date();
+                                        d.setDate(d.getDate() - daysAgo);
+                                        const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+                                        return <th key={daysAgo} className="p-3 border-b border-border font-medium text-center text-muted-foreground">{dayName}</th>
+                                    })}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {weeklyHabits.map((habit) => (
+                                    <tr key={habit.id} className="hover:bg-secondary/20 transition-colors">
+                                        <td className="p-3 border-b border-border font-semibold max-w-[200px] truncate">{habit.title}</td>
+                                        {[6, 5, 4, 3, 2, 1, 0].map(daysAgo => {
+                                            const d = new Date();
+                                            d.setDate(d.getDate() - daysAgo);
+                                            const dateStr = d.toISOString().split('T')[0];
+                                            const taskForDay = habit.tasks.find(t => t.due_date.startsWith(dateStr));
+
+                                            return (
+                                                <td key={daysAgo} className="p-3 border-b border-border text-center">
+                                                    {taskForDay ? (
+                                                        taskForDay.is_completed ? (
+                                                            <div className="inline-flex bg-green-500/10 text-green-500 p-1.5 rounded-md border border-green-500/20 shadow-sm">
+                                                                <CheckCircle size={18} />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="inline-flex bg-red-500/10 text-red-500 p-1.5 rounded-md border border-red-500/20 shadow-sm">
+                                                                <AlertCircle size={18} />
+                                                            </div>
+                                                        )
+                                                    ) : (
+                                                        <div className="inline-flex bg-secondary/50 text-muted-foreground p-1.5 rounded-md">
+                                                            <span className="w-4 h-4 block blur-[1px] opacity-20 outline outline-1 outline-offset-2 outline-border rounded-sm"></span>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                        <p>No permanent tasks active.</p>
+                        <p className="text-sm">Create a 'Permanent Task' from the Daily Tasks page to track your weekly streak here.</p>
+                    </div>
+                )}
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 bg-card p-6 rounded-xl border border-border shadow-sm min-h-[400px]">

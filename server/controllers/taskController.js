@@ -8,6 +8,18 @@ export const getTasks = async (req, res) => {
         let params = [req.user.id];
 
         if (today === 'true') {
+            // Auto-spawn today's habits
+            await query(`
+                INSERT INTO tasks (user_id, habit_id, goal_id, title, type, difficulty, due_date)
+                SELECT h.user_id, h.id, h.goal_id, h.title, 'permanent', h.difficulty, CURRENT_DATE
+                FROM habits h
+                WHERE h.user_id = $1
+                AND NOT EXISTS (
+                    SELECT 1 FROM tasks t 
+                    WHERE t.habit_id = h.id AND t.due_date = CURRENT_DATE
+                )
+            `, [req.user.id]);
+
             queryStr += ' AND due_date = CURRENT_DATE';
         }
 
@@ -21,12 +33,23 @@ export const getTasks = async (req, res) => {
 };
 
 export const createTask = async (req, res) => {
-    const { goal_id, title, difficulty, due_date } = req.body;
+    const { goal_id, title, difficulty, due_date, type } = req.body;
+    const taskType = type === 'permanent' ? 'permanent' : 'temporary';
 
     try {
+        let habitId = null;
+
+        if (taskType === 'permanent') {
+            const habitRes = await query(
+                'INSERT INTO habits (user_id, title, difficulty, goal_id) VALUES ($1, $2, $3, $4) RETURNING id',
+                [req.user.id, title, difficulty, goal_id || null]
+            );
+            habitId = habitRes.rows[0].id;
+        }
+
         const newTask = await query(
-            'INSERT INTO tasks (user_id, goal_id, title, difficulty, due_date) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [req.user.id, goal_id, title, difficulty, due_date || new Date()]
+            'INSERT INTO tasks (user_id, goal_id, habit_id, title, type, difficulty, due_date) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            [req.user.id, goal_id || null, habitId, title, taskType, difficulty, due_date || new Date()]
         );
 
         if (goal_id) {
@@ -109,4 +132,30 @@ export const deleteTask = async (req, res) => {
     }
 };
 
+export const getWeeklyHabits = async (req, res) => {
+    try {
+        const habitsRes = await query('SELECT id, title FROM habits WHERE user_id = $1 ORDER BY created_at ASC', [req.user.id]);
+
+        const tasksRes = await query(
+            `SELECT habit_id, due_date::text, is_completed, id 
+             FROM tasks 
+             WHERE user_id = $1 AND type = 'permanent' AND due_date >= CURRENT_DATE - INTERVAL '6 days'
+             ORDER BY due_date ASC`,
+            [req.user.id]
+        );
+
+        const matrix = habitsRes.rows.map(habit => {
+            const habitTasks = tasksRes.rows.filter(t => t.habit_id === habit.id);
+            return {
+                ...habit,
+                tasks: habitTasks
+            };
+        });
+
+        res.json(matrix);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error loading weekly grid' });
+    }
+};
 
