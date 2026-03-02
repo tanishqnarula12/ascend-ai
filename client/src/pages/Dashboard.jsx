@@ -34,7 +34,7 @@ const Dashboard = () => {
         const fetchDashboardData = async () => {
             try {
                 console.log("[DASHBOARD] Fetching data from all components...");
-                const [tasksRes, aiRes, analyticsRes, briefingRes, advAnalyticsRes, focusRes, motivationRes] = await Promise.all([
+                const [tasksRes, aiRes, analyticsRes, briefingRes, advAnalyticsRes, focusRes, motivationRes, habitsRes] = await Promise.all([
                     api.get('/tasks?today=true').then(r => { console.log("Tasks loaded"); return r; }).catch(e => { console.warn("Tasks failed", e); return { data: [] }; }),
                     api.get('/ai/insights').then(r => { console.log("Insights loaded"); return r; }).catch(e => { console.warn("Insights failed", e); return { data: { insight: "AI Service unavailable", productivity_score: 0 } }; }),
                     api.get('/goals/analytics').then(r => { console.log("Analytics loaded"); return r; }).catch(e => { console.warn("Analytics failed", e); return { data: { graphData: [], streak: 0 } }; }),
