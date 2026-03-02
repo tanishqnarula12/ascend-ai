@@ -1,8 +1,10 @@
 import express from 'express';
-import { getTasks, createTask, updateTask, deleteTask, getWeeklyHabits } from '../controllers/taskController.js';
+import { getTasks, createTask, updateTask, deleteTask, getWeeklyHabits, toggleHabitDay } from '../controllers/taskController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+router.post('/habits/:habitId/toggle', protect, toggleHabitDay);
 
 router.get('/habits/weekly', protect, getWeeklyHabits);
 router.get('/:goalId/tasks', protect, getTasks); // Tasks per goal or just generic

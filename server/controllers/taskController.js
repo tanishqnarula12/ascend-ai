@@ -159,3 +159,46 @@ export const getWeeklyHabits = async (req, res) => {
     }
 };
 
+export const toggleHabitDay = async (req, res) => {
+    const { habitId } = req.params;
+    const { date } = req.body;
+
+    try {
+        const parsedDate = new Date(date).toISOString().split('T')[0];
+
+        // Ensure not in the future
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (parsedDate > todayStr) {
+            return res.status(400).json({ message: "Cannot complete tasks in the future" });
+        }
+
+        const taskRes = await query('SELECT * FROM tasks WHERE habit_id = $1 AND due_date = $2', [habitId, parsedDate]);
+
+        if (taskRes.rows.length === 0) {
+            // Task completely missing on this day, create it and mark completed
+            const habitRes = await query('SELECT * FROM habits WHERE id = $1 AND user_id = $2', [habitId, req.user.id]);
+            if (habitRes.rows.length === 0) return res.status(404).json({ message: "Habit not found" });
+
+            const habit = habitRes.rows[0];
+            const newTask = await query(
+                `INSERT INTO tasks (user_id, goal_id, habit_id, title, type, difficulty, due_date, is_completed, completed_at) 
+                 VALUES ($1, $2, $3, $4, 'permanent', $5, $6, true, CURRENT_TIMESTAMP) RETURNING *`,
+                [req.user.id, habit.goal_id, habit.id, habit.title, habit.difficulty, parsedDate]
+            );
+            return res.json(newTask.rows[0]);
+        } else {
+            // Toggle existing task
+            const existingTask = taskRes.rows[0];
+            const newStatus = !existingTask.is_completed;
+            const toggleRes = await query(
+                `UPDATE tasks SET is_completed = $1, completed_at = $2 WHERE id = $3 RETURNING *`,
+                [newStatus, newStatus ? new Date() : null, existingTask.id]
+            );
+            return res.json(toggleRes.rows[0]);
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error toggling habit' });
+    }
+};
+

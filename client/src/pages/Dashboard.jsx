@@ -5,7 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import Heatmap from '../components/Heatmap';
 import BadgeModal from '../components/BadgeModal';
 import { motion } from 'framer-motion';
-import { AlertCircle, Zap, TrendingUp, CheckCircle, Award, BarChart3, Clock, Flame } from 'lucide-react';
+import { AlertCircle, Zap, TrendingUp, CheckCircle, Award, BarChart3, Clock, Flame, Square } from 'lucide-react';
 
 const Dashboard = () => {
     const { currentUser } = useAuth();
@@ -123,6 +123,46 @@ const Dashboard = () => {
 
     const hasData = stats.completedTasks > 0 || stats.pendingTasks > 0;
 
+    const weekDates = [];
+    const now = new Date();
+    // Normalize today for comparison
+    const todayStr = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+
+    // Get Monday of current week
+    const currentDay = now.getDay();
+    const diff = now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
+    const monday = new Date(now.setDate(diff));
+
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        // local YYYY-MM-DD
+        const dateStr = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        weekDates.push({ dateObj: d, dateStr });
+    }
+
+    const toggleHabit = async (habitId, dateStr) => {
+        if (dateStr > todayStr) return; // Disallow future completion natively
+        try {
+            await api.post(`/tasks/habits/${habitId}/toggle`, { date: dateStr });
+            setWeeklyHabits(prev => prev.map(habit => {
+                if (habit.id === habitId) {
+                    const taskIndex = habit.tasks.findIndex(t => t.due_date.startsWith(dateStr));
+                    const newTasks = [...habit.tasks];
+                    if (taskIndex >= 0) {
+                        newTasks[taskIndex] = { ...newTasks[taskIndex], is_completed: !newTasks[taskIndex].is_completed };
+                    } else {
+                        newTasks.push({ due_date: dateStr, is_completed: true, habit_id: habitId });
+                    }
+                    return { ...habit, tasks: newTasks };
+                }
+                return habit;
+            }));
+        } catch (error) {
+            console.error("Failed to toggle habit");
+        }
+    };
+
     return (
         <div className="space-y-8 pb-12">
             {stats.burnoutRisk === 'HIGH' && (
@@ -222,42 +262,44 @@ const Dashboard = () => {
                             <thead>
                                 <tr>
                                     <th className="p-3 border-b border-border font-medium text-muted-foreground">Task ↴</th>
-                                    {/* Generate last 7 days headers */}
-                                    {[6, 5, 4, 3, 2, 1, 0].map(daysAgo => {
-                                        const d = new Date();
-                                        d.setDate(d.getDate() - daysAgo);
-                                        const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-                                        return <th key={daysAgo} className="p-3 border-b border-border font-medium text-center text-muted-foreground">{dayName}</th>
+                                    {/* Generate current week headers */}
+                                    {weekDates.map(({ dateObj }, index) => {
+                                        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+                                        return <th key={index} className="p-3 border-b border-border font-medium text-center text-muted-foreground">{dayName}</th>
                                     })}
                                 </tr>
                             </thead>
                             <tbody>
                                 {weeklyHabits.map((habit) => (
                                     <tr key={habit.id} className="hover:bg-secondary/20 transition-colors">
-                                        <td className="p-3 border-b border-border font-semibold max-w-[200px] truncate">{habit.title}</td>
-                                        {[6, 5, 4, 3, 2, 1, 0].map(daysAgo => {
-                                            const d = new Date();
-                                            d.setDate(d.getDate() - daysAgo);
-                                            const dateStr = d.toISOString().split('T')[0];
+                                        <td className="p-3 border-b border-border font-semibold max-w-[200px] truncate" title={habit.title}>{habit.title}</td>
+                                        {weekDates.map(({ dateStr }) => {
                                             const taskForDay = habit.tasks.find(t => t.due_date.startsWith(dateStr));
+                                            const isFuture = dateStr > todayStr;
 
                                             return (
-                                                <td key={daysAgo} className="p-3 border-b border-border text-center">
-                                                    {taskForDay ? (
-                                                        taskForDay.is_completed ? (
-                                                            <div className="inline-flex bg-green-500/10 text-green-500 p-1.5 rounded-md border border-green-500/20 shadow-sm">
-                                                                <CheckCircle size={18} />
-                                                            </div>
+                                                <td key={dateStr} className="p-3 border-b border-border text-center">
+                                                    <button
+                                                        onClick={() => toggleHabit(habit.id, dateStr)}
+                                                        disabled={isFuture}
+                                                        className={`inline-flex items-center justify-center rounded-md p-1.5 transition-all outline-none ${isFuture ? 'opacity-30 cursor-not-allowed' : 'hover:scale-110 cursor-pointer'}`}
+                                                    >
+                                                        {taskForDay ? (
+                                                            taskForDay.is_completed ? (
+                                                                <div className="bg-green-500/10 text-green-500 rounded-md border border-green-500/20 shadow-sm p-1">
+                                                                    <CheckCircle size={18} />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="bg-red-500/10 text-red-500 rounded-md border border-red-500/20 shadow-sm p-1">
+                                                                    <AlertCircle size={18} />
+                                                                </div>
+                                                            )
                                                         ) : (
-                                                            <div className="inline-flex bg-red-500/10 text-red-500 p-1.5 rounded-md border border-red-500/20 shadow-sm">
-                                                                <AlertCircle size={18} />
+                                                            <div className="bg-secondary/30 text-muted-foreground/50 rounded-md hover:text-foreground hover:bg-secondary/50 p-1">
+                                                                <Square size={18} strokeWidth={2} />
                                                             </div>
-                                                        )
-                                                    ) : (
-                                                        <div className="inline-flex bg-secondary/50 text-muted-foreground p-1.5 rounded-md">
-                                                            <span className="w-4 h-4 block blur-[1px] opacity-20 outline outline-1 outline-offset-2 outline-border rounded-sm"></span>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                    </button>
                                                 </td>
                                             );
                                         })}
