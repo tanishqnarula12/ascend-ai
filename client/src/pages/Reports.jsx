@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
-import { FileText, Download, Calendar, Target, AlertTriangle, Lightbulb } from 'lucide-react';
+import { FileText, Download, Calendar, Target, AlertTriangle, Lightbulb, CheckCircle, AlertCircle, Square } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Reports = () => {
@@ -115,6 +115,57 @@ const Reports = () => {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Embedded Habit Matrix */}
+                            {report.habit_matrix && report.habit_matrix.length > 0 && (
+                                <div className="mt-8 border-t border-border pt-6">
+                                    <h4 className="font-bold flex items-center gap-2 mb-4 text-primary">
+                                        <CheckCircle size={18} /> Permanent Task Snapshot
+                                    </h4>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th className="p-2 font-medium text-muted-foreground border-b border-border">Task ↴</th>
+                                                    {[6, 5, 4, 3, 2, 1, 0].map(daysAgo => {
+                                                        const d = new Date(report.end_date);
+                                                        d.setDate(d.getDate() - daysAgo);
+                                                        const dateStr = d.toISOString().split('T')[0];
+                                                        return <th key={daysAgo} className="p-2 font-medium text-center text-muted-foreground border-b border-border" title={dateStr}>{d.toLocaleDateString('en-US', { weekday: 'short' })}</th>
+                                                    })}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {report.habit_matrix.map(habit => (
+                                                    <tr key={habit.id} className="hover:bg-secondary/10">
+                                                        <td className="p-2 border-b border-border text-muted-foreground max-w-[150px] truncate">{habit.title}</td>
+                                                        {[6, 5, 4, 3, 2, 1, 0].map(daysAgo => {
+                                                            const d = new Date(report.end_date);
+                                                            d.setDate(d.getDate() - daysAgo);
+                                                            const dateStr = d.toISOString().split('T')[0];
+                                                            const taskForDay = habit.tasks.find(t => t.due_date.startsWith(dateStr));
+
+                                                            return (
+                                                                <td key={daysAgo} className="p-2 border-b border-border text-center">
+                                                                    {taskForDay ? (
+                                                                        taskForDay.is_completed ? (
+                                                                            <CheckCircle size={16} className="text-green-500 mx-auto" />
+                                                                        ) : (
+                                                                            <AlertCircle size={16} className="text-red-500 mx-auto" />
+                                                                        )
+                                                                    ) : (
+                                                                        <Square size={16} className="text-muted-foreground/30 mx-auto" />
+                                                                    )}
+                                                                </td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
                         </motion.div>
                     ))
                 )}

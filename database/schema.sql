@@ -105,6 +105,7 @@ CREATE TABLE IF NOT EXISTS weekly_reports (
     ai_summary TEXT,
     focus_hours DECIMAL,
     total_tasks_completed INTEGER DEFAULT 0,
+    habit_matrix JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -76,10 +76,27 @@ export const getReports = async (req, res) => {
                 }
             }
 
+            const habitsRes = await query('SELECT id, title FROM habits WHERE user_id = $1 ORDER BY created_at ASC', [req.user.id]);
+            const habitTasksRes = await query(
+                `SELECT habit_id, due_date::text, is_completed, id 
+                 FROM tasks 
+                 WHERE user_id = $1 AND type = 'permanent' AND due_date >= CURRENT_DATE - INTERVAL '6 days'
+                 ORDER BY due_date ASC`,
+                [req.user.id]
+            );
+
+            const matrix = habitsRes.rows.map(habit => {
+                const hTasks = habitTasksRes.rows.filter(t => t.habit_id === habit.id);
+                return {
+                    ...habit,
+                    tasks: hTasks
+                };
+            });
+
             const newReport = await query(
                 `INSERT INTO weekly_reports 
-                 (user_id, start_date, end_date, completion_rate, burnout_risk, ai_summary, focus_hours, strongest_goal, weakest_goal, total_tasks_completed)
-                 VALUES ($1, CURRENT_DATE - INTERVAL '7 days', CURRENT_DATE, $2, $3, $4, $5, $6, $7, $8)
+                 (user_id, start_date, end_date, completion_rate, burnout_risk, ai_summary, focus_hours, strongest_goal, weakest_goal, total_tasks_completed, habit_matrix)
+                 VALUES ($1, CURRENT_DATE - INTERVAL '7 days', CURRENT_DATE, $2, $3, $4, $5, $6, $7, $8, $9)
                  RETURNING *`,
                 [
                     req.user.id,
@@ -89,7 +106,8 @@ export const getReports = async (req, res) => {
                     Math.round(focusHoursEstimate),
                     strongest,
                     weakest,
-                    totalCompletedEver
+                    totalCompletedEver,
+                    JSON.stringify(matrix)
                 ]
             );
             return res.json([newReport.rows[0], ...reports.rows]);
