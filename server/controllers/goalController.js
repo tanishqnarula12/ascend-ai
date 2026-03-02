@@ -256,9 +256,16 @@ export const updateGoalProgress = async (goalId, userId) => {
         );
 
         const { total, completed } = stats.rows[0];
-        const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-        const previousGoal = await query('SELECT status FROM goals WHERE id = $1', [goalId]);
+        const goalDataRes = await query('SELECT status, goal_type FROM goals WHERE id = $1', [goalId]);
+        const goal = goalDataRes.rows[0];
+
+        // Enforce progressive breakdown: min 4 tasks for short-term, 10 for long-term
+        const minTasks = goal.goal_type === 'long-term' ? 10 : 4;
+        const effectiveTotal = Math.max(parseInt(total), minTasks);
+
+        const progress = total > 0 ? Math.round((parseInt(completed) / effectiveTotal) * 100) : 0;
+
 
         await query(
             `UPDATE goals SET progress = $1, 
