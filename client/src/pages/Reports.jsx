@@ -80,8 +80,8 @@ const Reports = () => {
                                             <p className="text-xl md:text-2xl font-bold text-primary">{report.completion_rate}%</p>
                                         </div>
                                         <div className="p-4 bg-secondary/50 rounded-xl">
-                                            <p className="text-[10px] md:text-xs font-bold uppercase text-muted-foreground mb-1">Focus Time</p>
-                                            <p className="text-xl md:text-2xl font-bold text-primary">{report.focus_hours} hrs</p>
+                                            <p className="text-[10px] md:text-xs font-bold uppercase text-muted-foreground mb-1">Consistency Score</p>
+                                            <p className="text-xl md:text-2xl font-bold text-primary">{report.focus_hours}%</p>
                                         </div>
                                         <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl">
                                             <p className="text-[10px] md:text-xs font-bold uppercase text-primary mb-1">Total Progress</p>

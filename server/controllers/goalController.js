@@ -44,7 +44,15 @@ export const getReports = async (req, res) => {
             const tasks = tasksRes.rows;
             const completed = tasks.filter(t => t.is_completed).length;
             const completionRate = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
-            const focusHoursEstimate = tasks.filter(t => t.difficulty === 'hard' && t.is_completed).length * 1.5;
+
+            // Calculate actual consistency based on active days
+            const activeDaysRes = await query(
+                `SELECT COUNT(DISTINCT DATE(completed_at)) as count FROM tasks 
+                 WHERE user_id = $1 AND is_completed = true AND completed_at >= CURRENT_DATE - INTERVAL '7 days'`,
+                [req.user.id]
+            );
+            const activeDays = parseInt(activeDaysRes.rows[0].count);
+            const consistencyScore = Math.round((activeDays / 7) * 100);
 
             // Optional: determine strongest/weakest goal based on progress
             const goalsRes = await query(
@@ -103,7 +111,7 @@ export const getReports = async (req, res) => {
                     completionRate,
                     aiData.burnout_risk || "LOW",
                     aiData.ai_summary || `Great work this week! Lifetime progress: ${totalCompletedEver} tasks.`,
-                    Math.round(focusHoursEstimate),
+                    consistencyScore,
                     strongest,
                     weakest,
                     totalCompletedEver,
