@@ -254,7 +254,7 @@ const Dashboard = () => {
             {/* Weekly Habits Grid (Replaced Heatmap) */}
             <div className="bg-card p-6 rounded-xl border border-border shadow-sm overflow-x-auto">
                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <CheckCircle className="text-green-500" size={20} /> Permanent Task Tracker
+                    <CheckCircle className="text-green-500" size={20} /> Execution Board
                 </h3>
                 {weeklyHabits && weeklyHabits.length > 0 ? (
                     <div className="min-w-[600px]">
