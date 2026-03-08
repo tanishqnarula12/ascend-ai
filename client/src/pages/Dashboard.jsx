@@ -142,7 +142,7 @@ const Dashboard = () => {
     }
 
     const toggleHabit = async (habitId, dateStr) => {
-        if (dateStr > todayStr) return; // Disallow future completion natively
+        if (dateStr !== todayStr) return; // Disallow past or future completion natively
         try {
             await api.post(`/tasks/habits/${habitId}/toggle`, { date: dateStr });
             setWeeklyHabits(prev => prev.map(habit => {
@@ -283,14 +283,14 @@ const Dashboard = () => {
                                             <td className="p-3 border-b border-border font-semibold max-w-[200px] truncate" title={habit.title}>{habit.title}</td>
                                             {weekDates.map(({ dateStr }) => {
                                                 const taskForDay = habit.tasks.find(t => t.due_date.startsWith(dateStr));
-                                                const isFuture = dateStr > todayStr;
+                                                const isNotToday = dateStr !== todayStr;
 
                                                 return (
                                                     <td key={dateStr} className="p-3 border-b border-border text-center">
                                                         <button
                                                             onClick={() => toggleHabit(habit.id, dateStr)}
-                                                            disabled={isFuture}
-                                                            className={`inline-flex items-center justify-center rounded-md p-1.5 transition-all outline-none ${isFuture ? 'opacity-30 cursor-not-allowed' : 'hover:scale-110 cursor-pointer'}`}
+                                                            disabled={isNotToday}
+                                                            className={`inline-flex items-center justify-center rounded-md p-1.5 transition-all outline-none ${isNotToday ? 'opacity-30 cursor-not-allowed' : 'hover:scale-110 cursor-pointer'}`}
                                                         >
                                                             {taskForDay ? (
                                                                 taskForDay.is_completed ? (

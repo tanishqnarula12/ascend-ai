@@ -173,10 +173,10 @@ export const toggleHabitDay = async (req, res) => {
     try {
         const parsedDate = new Date(date).toISOString().split('T')[0];
 
-        // Ensure not in the future
+        // Ensure it's only today
         const todayStr = new Date().toISOString().split('T')[0];
-        if (parsedDate > todayStr) {
-            return res.status(400).json({ message: "Cannot complete tasks in the future" });
+        if (parsedDate !== todayStr) {
+            return res.status(400).json({ message: "Cannot complete tasks on past or future dates" });
         }
 
         const taskRes = await query('SELECT * FROM tasks WHERE habit_id = $1 AND due_date = $2', [habitId, parsedDate]);
