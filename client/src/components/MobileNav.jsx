@@ -1,8 +1,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, CheckSquare, Target, BarChart3, FileText } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, Target, BarChart3, FileText, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 const MobileNav = () => {
+    const { theme, toggleTheme } = useTheme();
     const navItems = [
         { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
         { to: '/goals', label: 'Goals', icon: Target },
@@ -28,6 +30,13 @@ const MobileNav = () => {
                     <span className="text-[10px] font-medium">{item.label}</span>
                 </NavLink>
             ))}
+            <button
+                onClick={toggleTheme}
+                className="flex flex-col items-center gap-1 transition-colors duration-200 text-muted-foreground hover:text-foreground mt-1"
+            >
+                {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                <span className="text-[10px] font-medium">Theme</span>
+            </button>
         </nav>
     );
 };

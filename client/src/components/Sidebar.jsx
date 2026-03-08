@@ -1,10 +1,12 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, CheckSquare, Target, LogOut, BarChart3, FileText } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, Target, LogOut, BarChart3, FileText, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 const Sidebar = () => {
     const { logout } = useAuth();
+    const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -43,7 +45,14 @@ const Sidebar = () => {
                 </nav>
             </div>
 
-            <div className="p-6 border-t border-border">
+            <div className="p-6 border-t border-border space-y-2">
+                <button
+                    onClick={toggleTheme}
+                    className="flex items-center gap-3 px-4 py-3 text-muted-foreground hover:bg-secondary hover:text-foreground rounded-lg w-full transition-colors"
+                >
+                    {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                    {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                </button>
                 <button
                     onClick={handleLogout}
                     className="flex items-center gap-3 px-4 py-3 text-destructive hover:bg-destructive/10 rounded-lg w-full transition-colors"

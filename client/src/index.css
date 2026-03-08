@@ -56,8 +56,5 @@
 
   body {
     @apply bg-background text-foreground;
-    /* Fallback if variables fail */
-    background-color: white;
-    color: black;
   }
 }
