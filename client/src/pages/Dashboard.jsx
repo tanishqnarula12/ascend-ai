@@ -290,7 +290,7 @@ const Dashboard = () => {
                                                         <button
                                                             onClick={() => toggleHabit(habit.id, dateStr)}
                                                             disabled={isNotToday}
-                                                            className={`inline-flex items-center justify-center rounded-md p-1.5 transition-all outline-none ${isNotToday ? 'opacity-30 cursor-not-allowed' : 'hover:scale-110 cursor-pointer'}`}
+                                                            className={`inline-flex items-center justify-center rounded-md p-1.5 transition-all outline-none ${isNotToday ? 'cursor-not-allowed' : 'hover:scale-110 cursor-pointer'}`}
                                                         >
                                                             {taskForDay ? (
                                                                 taskForDay.is_completed ? (
