@@ -12,7 +12,6 @@ const Tasks = () => {
     const [selectedGoal, setSelectedGoal] = useState('');
     const [difficulty, setDifficulty] = useState('medium');
     const [taskType, setTaskType] = useState('temporary');
-    const [celebrate, setCelebrate] = useState(null);
 
     const fetchTasks = async () => {
         try {
@@ -63,11 +62,6 @@ const Tasks = () => {
                 t.id === task.id ? { ...t, is_completed: !t.is_completed } : t
             );
             setTasks(updatedTasks);
-
-            if (!task.is_completed) {
-                setCelebrate(task.id);
-                setTimeout(() => setCelebrate(null), 1000);
-            }
 
             await api.put(`/tasks/${task.id}`, {
                 is_completed: !task.is_completed
@@ -190,15 +184,6 @@ const Tasks = () => {
                                 : 'bg-card border-border hover:border-primary/50 hover:shadow-sm'
                                 }`}
                         >
-                            {celebrate === task.id && (
-                                <motion.div
-                                    initial={{ y: 0, opacity: 1 }}
-                                    animate={{ y: -50, opacity: 0 }}
-                                    className="absolute left-4 top-4 text-primary font-bold flex items-center gap-1 z-20 pointer-events-none"
-                                >
-                                    <Zap size={14} fill="currentColor" /> +{task.difficulty === 'hard' ? 60 : task.difficulty === 'medium' ? 25 : 10} XP
-                                </motion.div>
-                            )}
                             <div className="flex items-center gap-4 flex-1">
                                 <button
                                     onClick={() => toggleTask(task)}

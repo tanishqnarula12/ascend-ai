@@ -121,6 +121,13 @@ export const deleteTask = async (req, res) => {
         }
 
         const task = result.rows[0];
+
+        // Ensure the habit is also removed so it disappears from the Dashboard entirely
+        if (task.habit_id) {
+            await query('DELETE FROM habits WHERE id = $1 AND user_id = $2', [task.habit_id, req.user.id]);
+            await query('DELETE FROM tasks WHERE habit_id = $1 AND user_id = $2', [task.habit_id, req.user.id]);
+        }
+
         if (task.goal_id) {
             await updateGoalProgress(task.goal_id, req.user.id);
         }

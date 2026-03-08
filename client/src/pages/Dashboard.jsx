@@ -267,44 +267,66 @@ const Dashboard = () => {
                                         const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
                                         return <th key={index} className="p-3 border-b border-border font-medium text-center text-muted-foreground">{dayName}</th>
                                     })}
+                                    <th className="p-3 border-b border-border font-medium text-center text-muted-foreground">Progress</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {weeklyHabits.map((habit) => (
-                                    <tr key={habit.id} className="hover:bg-secondary/20 transition-colors">
-                                        <td className="p-3 border-b border-border font-semibold max-w-[200px] truncate" title={habit.title}>{habit.title}</td>
-                                        {weekDates.map(({ dateStr }) => {
-                                            const taskForDay = habit.tasks.find(t => t.due_date.startsWith(dateStr));
-                                            const isFuture = dateStr > todayStr;
+                                {weeklyHabits.map((habit) => {
+                                    const completedCount = weekDates.filter(({ dateStr }) => {
+                                        const task = habit.tasks.find(t => t.due_date.startsWith(dateStr));
+                                        return task && task.is_completed;
+                                    }).length;
+                                    const percentage = Math.round((completedCount / 7) * 100);
 
-                                            return (
-                                                <td key={dateStr} className="p-3 border-b border-border text-center">
-                                                    <button
-                                                        onClick={() => toggleHabit(habit.id, dateStr)}
-                                                        disabled={isFuture}
-                                                        className={`inline-flex items-center justify-center rounded-md p-1.5 transition-all outline-none ${isFuture ? 'opacity-30 cursor-not-allowed' : 'hover:scale-110 cursor-pointer'}`}
-                                                    >
-                                                        {taskForDay ? (
-                                                            taskForDay.is_completed ? (
-                                                                <div className="bg-green-500/10 text-green-500 rounded-md border border-green-500/20 shadow-sm p-1">
-                                                                    <CheckCircle size={18} />
-                                                                </div>
+                                    return (
+                                        <tr key={habit.id} className="hover:bg-secondary/20 transition-colors">
+                                            <td className="p-3 border-b border-border font-semibold max-w-[200px] truncate" title={habit.title}>{habit.title}</td>
+                                            {weekDates.map(({ dateStr }) => {
+                                                const taskForDay = habit.tasks.find(t => t.due_date.startsWith(dateStr));
+                                                const isFuture = dateStr > todayStr;
+
+                                                return (
+                                                    <td key={dateStr} className="p-3 border-b border-border text-center">
+                                                        <button
+                                                            onClick={() => toggleHabit(habit.id, dateStr)}
+                                                            disabled={isFuture}
+                                                            className={`inline-flex items-center justify-center rounded-md p-1.5 transition-all outline-none ${isFuture ? 'opacity-30 cursor-not-allowed' : 'hover:scale-110 cursor-pointer'}`}
+                                                        >
+                                                            {taskForDay ? (
+                                                                taskForDay.is_completed ? (
+                                                                    <div className="bg-green-500/10 text-green-500 rounded-md border border-green-500/20 shadow-sm p-1">
+                                                                        <CheckCircle size={18} />
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="bg-red-500/10 text-red-500 rounded-md border border-red-500/20 shadow-sm p-1">
+                                                                        <AlertCircle size={18} />
+                                                                    </div>
+                                                                )
                                                             ) : (
-                                                                <div className="bg-red-500/10 text-red-500 rounded-md border border-red-500/20 shadow-sm p-1">
-                                                                    <AlertCircle size={18} />
+                                                                <div className="bg-secondary/30 text-muted-foreground/50 rounded-md hover:text-foreground hover:bg-secondary/50 p-1">
+                                                                    <Square size={18} strokeWidth={2} />
                                                                 </div>
-                                                            )
-                                                        ) : (
-                                                            <div className="bg-secondary/30 text-muted-foreground/50 rounded-md hover:text-foreground hover:bg-secondary/50 p-1">
-                                                                <Square size={18} strokeWidth={2} />
-                                                            </div>
-                                                        )}
-                                                    </button>
-                                                </td>
-                                            );
-                                        })}
-                                    </tr>
-                                ))}
+                                                            )}
+                                                        </button>
+                                                    </td>
+                                                );
+                                            })}
+                                            <td className="p-3 border-b border-border text-center align-middle w-16">
+                                                <div className="relative inline-flex items-center justify-center -ml-1">
+                                                    <svg className="w-8 h-8 transform -rotate-90">
+                                                        <circle cx="16" cy="16" r="14" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-secondary" />
+                                                        <circle cx="16" cy="16" r="14" stroke="currentColor" strokeWidth="3" fill="transparent"
+                                                            strokeDasharray="87.96"
+                                                            strokeDashoffset={87.96 - (percentage / 100) * 87.96}
+                                                            className={`transition-all duration-500 ease-in-out ${percentage === 100 ? 'text-green-500' : 'text-primary'}`} />
+                                                    </svg>
+                                                    {percentage === 100 && <CheckCircle size={10} className="absolute text-green-500 bg-card rounded-full" />}
+                                                    {percentage < 100 && percentage > 0 && <span className="absolute text-[9px] font-bold text-primary">{percentage}%</span>}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>

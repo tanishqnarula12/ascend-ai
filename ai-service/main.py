@@ -5,7 +5,7 @@ import random
 app = FastAPI()
 
 class UserRequest(BaseModel):
-    user_id: int
+    user_id: int | str
 
 @app.get("/")
 def read_root():
@@ -92,7 +92,15 @@ def get_daily_motivation(request: UserRequest):
         "A year from now you may wish you had started today.",
         "Discipline is doing what needs to be done, even if you don't want to do it.",
         "Small steps every day lead to big results.",
-        "Success is not final, failure is not fatal: it is the courage to continue that counts. – Winston Churchill"
+        "Success is not final, failure is not fatal: it is the courage to continue that counts. – Winston Churchill",
+        "It does not matter how slowly you go as long as you do not stop. – Confucius",
+        "Believe you can and you're halfway there. – Theodore Roosevelt",
+        "You are never too old to set another goal or to dream a new dream. – C.S. Lewis",
+        "What you get by achieving your goals is not as important as what you become by achieving your goals. – Zig Ziglar",
+        "I find that the harder I work, the more luck I seem to have. – Thomas Jefferson",
+        "The future depends on what you do today. – Mahatma Gandhi",
+        "Don't watch the clock; do what it does. Keep going. – Sam Levenson",
+        "Everything you've ever wanted is on the other side of fear. – George Addair"
     ]
     return {
         "quote": random.choice(quotes),
