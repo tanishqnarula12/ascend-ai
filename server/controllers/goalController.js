@@ -53,7 +53,7 @@ export const getReports = async (req, res) => {
                 [req.user.id]
             );
             const activeDays = parseInt(activeDaysRes.rows[0].count);
-            const consistencyScore = Math.round((activeDays / 7) * 100);
+            const consistencyScore = Math.round((activeDays / 7) * 10);
 
             // Optional: determine strongest/weakest goal based on progress
             const goalsRes = await query(

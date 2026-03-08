@@ -81,7 +81,9 @@ const Reports = () => {
                                         </div>
                                         <div className="p-4 bg-secondary/50 rounded-xl">
                                             <p className="text-[10px] md:text-xs font-bold uppercase text-muted-foreground mb-1">Consistency Score</p>
-                                            <p className="text-xl md:text-2xl font-bold text-primary">{report.focus_hours}%</p>
+                                            <p className="text-xl md:text-2xl font-bold text-primary">
+                                                {report.focus_hours > 10 ? Math.round(report.focus_hours / 10) : report.focus_hours}/10
+                                            </p>
                                         </div>
                                         <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl">
                                             <p className="text-[10px] md:text-xs font-bold uppercase text-primary mb-1">Total Progress</p>
