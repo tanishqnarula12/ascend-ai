@@ -302,6 +302,10 @@ const Dashboard = () => {
                                                                         <AlertCircle size={18} />
                                                                     </div>
                                                                 )
+                                                            ) : dateStr < todayStr ? (
+                                                                <div className="bg-red-500/10 text-red-500 rounded-md border border-red-500/20 shadow-sm p-1">
+                                                                    <AlertCircle size={18} />
+                                                                </div>
                                                             ) : (
                                                                 <div className="bg-secondary/30 text-muted-foreground/50 rounded-md hover:text-foreground hover:bg-secondary/50 p-1">
                                                                     <Square size={18} strokeWidth={2} />

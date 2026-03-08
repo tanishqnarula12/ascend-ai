@@ -153,6 +153,8 @@ const Reports = () => {
                                                                         ) : (
                                                                             <AlertCircle size={16} className="text-red-500 mx-auto" />
                                                                         )
+                                                                    ) : dateStr < new Date().toISOString().split('T')[0] ? (
+                                                                        <AlertCircle size={16} className="text-red-500 mx-auto" />
                                                                     ) : (
                                                                         <Square size={16} className="text-muted-foreground/30 mx-auto" />
                                                                     )}
