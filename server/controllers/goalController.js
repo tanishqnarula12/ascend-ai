@@ -44,6 +44,7 @@ export const getReports = async (req, res) => {
             const tasks = tasksRes.rows;
             const completed = tasks.filter(t => t.is_completed).length;
             const completionRate = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
+            const hardRatio = tasks.length > 0 ? (tasks.filter(t => t.difficulty === 'hard').length / tasks.length) * 100 : 0;
 
             // Calculate actual consistency based on active days
             const activeDaysRes = await query(
@@ -75,7 +76,8 @@ export const getReports = async (req, res) => {
                         body: JSON.stringify({
                             username: req.user.username,
                             completion_rate: completionRate,
-                            total_tasks_completed: totalCompletedEver
+                            total_tasks_completed: totalCompletedEver,
+                            hard_task_ratio: hardRatio
                         })
                     });
                     aiData = await aiReportRes.json();

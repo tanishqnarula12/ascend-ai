@@ -113,12 +113,22 @@ def generate_weekly_report(data: dict):
     comp_rate = data.get('completion_rate', 0)
     total_tasks = data.get('total_tasks_completed', 0)
     
+    # Advanced Burnout Calculation matching the live dashboard
+    hard_ratio = data.get('hard_task_ratio', 0)
+    declining_momentum = comp_rate < 40  # using low completion as proxy for lost momentum in weekly scale
+    streak_broken = comp_rate < 50 # proxy for broken habits
+    
+    risk = "LOW"
+    if hard_ratio > 60 and declining_momentum:
+        risk = "HIGH"
+    elif hard_ratio > 40 or declining_momentum or streak_broken:
+        risk = "MODERATE"
+    
     lifetime_msg = f" You've completed {total_tasks} tasks overall!" if total_tasks > 0 else ""
     
     return {
         "ai_summary": f"Great work this week, {user_name}! You completed {comp_rate}% of your tasks.{lifetime_msg} Your focus was primarily on Career goals. Avoid loading too many 'Hard' tasks on Mondays to maintain momentum.",
-        "burnout_risk": "LOW" if comp_rate > 70 else "MODERATE",
-        "focus_hours": round(random.uniform(10, 25), 1)
+        "burnout_risk": risk
     }
 
 if __name__ == "__main__":
