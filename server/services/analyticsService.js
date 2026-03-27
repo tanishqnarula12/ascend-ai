@@ -23,11 +23,22 @@ export const calculateConsistencyScore = async (userId) => {
         // Fetch streak
         const streakRes = await query(
             `WITH DailyCompletions AS (
-                SELECT DISTINCT DATE(completed_at) as completed_date
+                SELECT DISTINCT DATE(completed_at) as date
                 FROM tasks
                 WHERE user_id = $1 AND is_completed = true
+            ),
+            RecentCompletions AS (
+                SELECT date, (CURRENT_DATE - date)::integer as days_ago
+                FROM DailyCompletions
+                WHERE (CURRENT_DATE - date)::integer >= 0
+            ),
+            StreakGroups AS (
+                SELECT days_ago, days_ago - (ROW_NUMBER() OVER (ORDER BY days_ago))::integer as grp
+                FROM RecentCompletions
             )
-            SELECT COUNT(*) as streak FROM DailyCompletions WHERE completed_date > CURRENT_DATE - INTERVAL '30 days'`,
+            SELECT COUNT(*) as streak
+            FROM StreakGroups
+            WHERE grp = (SELECT min(grp) FROM StreakGroups WHERE days_ago IN (0, 1))`,
             [userId]
         );
         const streak = parseInt(streakRes.rows[0].streak) || 0;
@@ -80,13 +91,14 @@ export const getBurnoutRisk = async (userId) => {
             body: JSON.stringify({
                 hard_task_ratio: hardRatio,
                 momentum: completionRate,
-                streak_broken: completionRate < 50
+                streak_broken: completionRate < 50,
+                tasks_this_week: tasks.length
             })
         });
 
         return await aiResponse.json();
     } catch (error) {
-        return { risk_level: 'LOW' };
+        return { risk_level: tasks ? (tasks.length === 0 ? 'N/A' : 'LOW') : 'LOW' };
     }
 };
 

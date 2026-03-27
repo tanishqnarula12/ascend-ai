@@ -70,6 +70,10 @@ def calculate_consistency(data: dict):
 
 @app.post("/burnout")
 def detect_burnout(data: dict):
+    tasks_this_week = data.get('tasks_this_week', 1)
+    if tasks_this_week == 0:
+        return {"risk_level": "N/A (Inactive)"}
+
     hard_ratio = data.get('hard_task_ratio', 0)
     declining_momentum = data.get('momentum', 0) < 40
     streak_broken = data.get('streak_broken', False)
@@ -112,6 +116,13 @@ def generate_weekly_report(data: dict):
     user_name = data.get('username', 'User')
     comp_rate = data.get('completion_rate', 0)
     total_tasks = data.get('total_tasks_completed', 0)
+    tasks_this_week = data.get('tasks_this_week', 1)
+    
+    if tasks_this_week == 0:
+        return {
+            "ai_summary": f"Hi {user_name}, we missed you this week! You haven't logged any tasks recently. Take your time, and jump back in when you're ready.",
+            "burnout_risk": "N/A (Inactive)"
+        }
     
     # Advanced Burnout Calculation matching the live dashboard
     hard_ratio = data.get('hard_task_ratio', 0)

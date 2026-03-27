@@ -64,8 +64,10 @@ export const getReports = async (req, res) => {
             const weakest = goalsRes.rows.length > 1 ? goalsRes.rows[goalsRes.rows.length - 1].title : null;
 
             let aiData = {
-                ai_summary: `You completed ${completionRate}% of your tasks this week! Lifetime progress: ${totalCompletedEver} tasks. Keep up the consistency.`,
-                burnout_risk: "LOW"
+                ai_summary: tasks.length === 0 
+                    ? `Hi ${req.user.username}, we missed you this week! You haven't logged any tasks recently. Take your time, and jump back in when you're ready.`
+                    : `You completed ${completionRate}% of your tasks this week! Lifetime progress: ${totalCompletedEver} tasks. Keep up the consistency.`,
+                burnout_risk: tasks.length === 0 ? "N/A" : "LOW"
             };
 
             if (process.env.AI_SERVICE_URL) {
@@ -77,7 +79,8 @@ export const getReports = async (req, res) => {
                             username: req.user.username,
                             completion_rate: completionRate,
                             total_tasks_completed: totalCompletedEver,
-                            hard_task_ratio: hardRatio
+                            hard_task_ratio: hardRatio,
+                            tasks_this_week: tasks.length
                         })
                     });
                     aiData = await aiReportRes.json();
@@ -221,21 +224,22 @@ export const getAnalytics = async (req, res) => {
         // Calculate streak (consecutive days with at least one task)
         const streakRes = await query(
             `WITH DailyCompletions AS (
-                SELECT DISTINCT DATE(completed_at) as completed_date
+                SELECT DISTINCT DATE(completed_at) as date
                 FROM tasks
                 WHERE user_id = $1 AND is_completed = true
             ),
-            StreakCalc AS (
-                SELECT 
-                    completed_date,
-                    completed_date - (ROW_NUMBER() OVER (ORDER BY completed_date))::integer as group_id
+            RecentCompletions AS (
+                SELECT date, (CURRENT_DATE - date)::integer as days_ago
                 FROM DailyCompletions
+                WHERE (CURRENT_DATE - date)::integer >= 0
+            ),
+            StreakGroups AS (
+                SELECT days_ago, days_ago - (ROW_NUMBER() OVER (ORDER BY days_ago))::integer as grp
+                FROM RecentCompletions
             )
             SELECT COUNT(*) as streak
-            FROM StreakCalc
-            GROUP BY group_id
-            ORDER BY streak DESC
-            LIMIT 1`,
+            FROM StreakGroups
+            WHERE grp = (SELECT min(grp) FROM StreakGroups WHERE days_ago IN (0, 1))`,
             [req.user.id]
         );
 
