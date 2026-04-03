@@ -25,7 +25,7 @@ export const register = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, salt);
 
         const newUser = await query(
-            'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email, xp, level, photo_url',
+            'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email, photo_url',
             [username, email, hashedPassword]
         );
 
@@ -93,14 +93,17 @@ export const googleLogin = async (req, res) => {
             const salt = await bcrypt.genSalt(10);
             const dummyPassword = await bcrypt.hash(email + process.env.JWT_SECRET, salt);
             
+            // Append a short random string to ensure unique username constraint is met
+            const uniqueUsername = `${name}_${Math.floor(Math.random() * 10000)}`;
+
             const newUser = await query(
-                'INSERT INTO users (username, email, password_hash, photo_url) VALUES ($1, $2, $3, $4) RETURNING id, username, email, xp, level, photo_url',
-                [name, email, dummyPassword, picture]
+                'INSERT INTO users (username, email, password_hash, photo_url) VALUES ($1, $2, $3, $4) RETURNING id, username, email, photo_url',
+                [uniqueUsername, email, dummyPassword, picture]
             );
             user = { rows: [newUser.rows[0]] };
         } else if (!user.rows[0].photo_url && picture) {
             const updatedUser = await query(
-                'UPDATE users SET photo_url = $1 WHERE id = $2 RETURNING id, username, email, xp, level, photo_url',
+                'UPDATE users SET photo_url = $1 WHERE id = $2 RETURNING id, username, email, photo_url',
                 [picture, user.rows[0].id]
             );
             user = { rows: [updatedUser.rows[0]] };
@@ -123,7 +126,7 @@ export const googleLogin = async (req, res) => {
 
 export const getProfile = async (req, res) => {
     try {
-        const user = await query('SELECT id, username, email, xp, level, photo_url FROM users WHERE id = $1', [req.user.id]);
+        const user = await query('SELECT id, username, email, photo_url FROM users WHERE id = $1', [req.user.id]);
         res.json({
             ...user.rows[0],
             photoUrl: user.rows[0].photo_url
@@ -138,7 +141,7 @@ export const updateProfile = async (req, res) => {
     const { username, email, photoUrl } = req.body;
     try {
         const updatedUser = await query(
-            'UPDATE users SET username = $1, email = $2, photo_url = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING id, username, email, xp, level, photo_url',
+            'UPDATE users SET username = $1, email = $2, photo_url = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING id, username, email, photo_url',
             [username, email, photoUrl, req.user.id]
         );
 
