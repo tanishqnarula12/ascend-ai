@@ -42,24 +42,57 @@ const Profile = () => {
 
     const handlePhotoChange = (e) => {
         if (e.target.files && e.target.files[0]) {
-            const fileReader = new FileReader();
-            fileReader.onload = async () => {
-                const base64Url = fileReader.result;
-                try {
-                    const response = await api.put('/auth/profile', { 
-                        username: currentUser.username, 
-                        email: currentUser.email,
-                        photoUrl: base64Url 
-                    });
-                    const updatedUser = response.data;
-                    setCurrentUser(updatedUser);
-                    localStorage.setItem('user', JSON.stringify(updatedUser));
-                } catch (error) {
-                    console.error('Failed to upload photo', error);
-                    alert('Failed to upload photo');
-                }
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = async () => {
+                    // Create an intelligently compressed 250x250 portrait 
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Maintain aspect ratio while sizing down
+                    const maxDim = 250;
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > height) {
+                        if (width > maxDim) {
+                            height *= maxDim / width;
+                            width = maxDim;
+                        }
+                    } else {
+                        if (height > maxDim) {
+                            width *= maxDim / height;
+                            height = maxDim;
+                        }
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Super compressed base64 jpg (virtually instant upload!)
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+
+                    try {
+                        const response = await api.put('/auth/profile', { 
+                            username: currentUser.username, 
+                            email: currentUser.email,
+                            photoUrl: compressedBase64 
+                        });
+                        const updatedUser = response.data;
+                        setCurrentUser(updatedUser);
+                        localStorage.setItem('user', JSON.stringify(updatedUser));
+                    } catch (error) {
+                        console.error('Failed to upload photo', error);
+                        alert('Failed to upload photo: ' + (error.response?.data?.message || 'Server timeout'));
+                    }
+                };
+                img.src = event.target.result;
             };
-            fileReader.readAsDataURL(e.target.files[0]);
+            reader.readAsDataURL(file);
         }
     };
 
