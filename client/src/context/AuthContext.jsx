@@ -104,7 +104,8 @@ export const AuthProvider = ({ children }) => {
         register,
         logout,
         refreshUser,
-        api
+        api,
+        setCurrentUser
     };
 
     if (loading) {
