@@ -48,18 +48,26 @@ async function fetchWithFallback(prompt) {
     throw new Error("All backup AI compute nodes are currently overloaded.");
 }
 
-// Consolidated AI Fetcher
+// Consolidated AI Fetcher with Thundering Herd Promise-based Protection
 async function getCachedOrFetchGemini(userId) {
     const now = Date.now();
     const cached = aiCache.get(userId);
-    if (cached && (now - cached.timestamp < CACHE_TTL)) {
+    
+    // If we have a resolved cache payload that's not expired, return it instantly
+    if (cached && cached.data && (now - cached.timestamp < CACHE_TTL)) {
         return cached.data;
     }
 
-    try {
-        if (!process.env.GEMINI_API_KEY) {
-            throw new Error("GEMINI_API_KEY is not configured.");
-        }
+    // If there is ALREADY a pending request to Google, wait for it instead of spamming 4 parallel ones!
+    if (cached && cached.promise) {
+        return await cached.promise;
+    }
+
+    const fetchPromise = (async () => {
+        try {
+            if (!process.env.GEMINI_API_KEY) {
+                throw new Error("GEMINI_API_KEY is not configured.");
+            }
 
         // Fetch deep context from PostgreSQL to feed into Gemini
         const tasksRes = await query(`
@@ -105,25 +113,36 @@ async function getCachedOrFetchGemini(userId) {
         if (rawText.startsWith('```json')) rawText = rawText.slice(7, -3).trim();
         else if (rawText.startsWith('```')) rawText = rawText.slice(3, -3).trim();
 
-        const data = JSON.parse(rawText);
-        aiCache.set(userId, { data, timestamp: now });
-        return data;
+            const data = JSON.parse(rawText);
+            
+            // Overwrite the cache promise with the final completed data!
+            aiCache.set(userId, { data, timestamp: Date.now() });
+            return data;
 
-    } catch (e) {
-        console.error("Gemini AI Engine Generation Error:", e);
-        // Instant gracefully fallback if Gemini is offline or limit hit
-        return {
-            insight: "Keep stacking days! Consistency is the ultimate key.",
-            productivity_score: 80,
-            mood_trend: "Stable",
-            briefing: "Focus on closing down your highest priority pending task today.",
-            focus_priority: "Deep Work",
-            success_probability: 0.85,
-            recommended_difficulty: "Medium",
-            quote: "Small disciplines repeated with consistency every day lead to great achievements.",
-            author: "AscendAI Fallback"
-        };
-    }
+        } catch (e) {
+            console.error("Gemini AI Engine Generation Error:", e);
+            // Instant gracefully fallback if Gemini is offline or limit hit
+            const fallbackData = {
+                insight: "Keep stacking days! Consistency is the ultimate key.",
+                productivity_score: 80,
+                mood_trend: "Stable",
+                briefing: "Focus on closing down your highest priority pending task today.",
+                focus_priority: "Deep Work",
+                success_probability: 0.85,
+                recommended_difficulty: "Medium",
+                quote: "Small disciplines repeated with consistency every day lead to great achievements.",
+                author: "AscendAI Fallback"
+            };
+            aiCache.set(userId, { data: fallbackData, timestamp: Date.now() });
+            return fallbackData;
+        }
+    })();
+
+    // Store the raw PENDING promise in the cache immediately, so all 4 parallel dashboard 
+    // widgets wait gracefully instead of flooding Google API 4 times instantly!
+    aiCache.set(userId, { promise: fetchPromise, timestamp: now });
+    
+    return await fetchPromise;
 }
 
 export const getVerdict = async (req, res) => {
