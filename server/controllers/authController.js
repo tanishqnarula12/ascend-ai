@@ -85,6 +85,7 @@ export const googleLogin = async (req, res) => {
         const payload = ticket.getPayload();
         const email = payload.email;
         const name = payload.name;
+        const picture = payload.picture;
         
         let user = await query('SELECT * FROM users WHERE email = $1', [email]);
         
@@ -93,10 +94,16 @@ export const googleLogin = async (req, res) => {
             const dummyPassword = await bcrypt.hash(email + process.env.JWT_SECRET, salt);
             
             const newUser = await query(
-                'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email, xp, level, photo_url',
-                [name, email, dummyPassword]
+                'INSERT INTO users (username, email, password_hash, photo_url) VALUES ($1, $2, $3, $4) RETURNING id, username, email, xp, level, photo_url',
+                [name, email, dummyPassword, picture]
             );
             user = { rows: [newUser.rows[0]] };
+        } else if (!user.rows[0].photo_url && picture) {
+            const updatedUser = await query(
+                'UPDATE users SET photo_url = $1 WHERE id = $2 RETURNING id, username, email, xp, level, photo_url',
+                [picture, user.rows[0].id]
+            );
+            user = { rows: [updatedUser.rows[0]] };
         }
         
         res.json({
