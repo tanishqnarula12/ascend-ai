@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-const genAI = new GoogleGenerativeAI("AIzaSyA2GJzuKv6m2mDihmcjd95Q3j9v2BwsozA");
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
 async function checkModels() {
     try {
