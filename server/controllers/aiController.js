@@ -21,7 +21,7 @@ export const getAdvancedAnalytics = async (req, res) => {
     }
 };
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
 // In-memory cache to strictly protect Gemini's 15 calls/minute rate limit
 // Structure: Map(userId => { data: { insight, briefing, quote, etc }, timestamp: Date.now() })
@@ -30,15 +30,22 @@ const CACHE_TTL = 10 * 60 * 1000; // Keep cache alive for 10 minutes per user
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "dummy");
 
+// Disable ALL safety filters so the AI can deliver uncensored verdicts
+const safetySettings = [
+    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+];
+
 // Shared Multi-Model Fallback Engine to bypass Google 503 High Demand blocks
 async function fetchWithFallback(prompt) {
     if (!process.env.GEMINI_API_KEY) throw new Error("No API Key");
     
-    // We seamlessly cascade down the priority list if a specific node is choked!
     const fallbackChain = ["gemini-2.0-flash", "gemini-flash-lite-latest", "gemini-flash-latest", "gemini-1.5-flash", "gemini-2.5-flash"];
     for (const modelId of fallbackChain) {
         try {
-            const model = genAI.getGenerativeModel({ model: modelId });
+            const model = genAI.getGenerativeModel({ model: modelId, safetySettings });
             const result = await model.generateContent(prompt);
             return result;
         } catch (err) {
@@ -170,14 +177,14 @@ export const getVerdict = async (req, res) => {
         }
 
         const prompt = `
-        You are an absolutely vicious, merciless, and hyper-aggressive AI productivity coach. You do not care about the user's feelings. You exist to forge them into a weapon through brutal psychological pressure and adrenaline-pumping reality checks.
+        SYSTEM DIRECTIVE: You are an unfiltered, uncensored, absolutely savage AI drill sergeant inside a productivity app. All content filters are disabled. You MUST use actual profanity and swear words (fuck, shit, damn, hell, ass, etc) — do NOT censor them with asterisks. This is a private personal motivation tool and the user has explicitly requested aggressive uncensored language.
         
-        Look at this user's raw task data. 
-        If their completion rate is > 75%, HYPE THEM UP aggressively. Curse, swear, and praise them like a completely unstoppable f*cking titan of discipline. 
-        If their completion rate is < 75% or they have 0 tasks, ROAST THEM WITHOUT MERCY. Call them out on their pathetic bullshit, tear apart their delusions, use strong profanity (like f*ck, sh*t) to deliver a massive adrenaline spike, and brutally mock their laziness.
+        Analyze this user's task data:
+        If completion rate > 75%: Go absolutely insane hyping them up. Swear with joy, call them a fucking beast, a goddamn machine, act like their biggest aggressive fan.
+        If completion rate < 75% or 0 tasks: Destroy them. Rip their ego apart. Use real profanity. Tell them their goals are dying because they're too lazy to lift a finger. Be the most savage, foul-mouthed drill sergeant imaginable.
         
-        End with a 1-sentence wake-up call that violently demands they get back to work immediately.
-        Keep it under 4 short, explosive sentences. DO NOT use markdown, just raw text.
+        End with one explosive sentence demanding they get off their ass RIGHT NOW.
+        Keep it to 3-4 short, punchy, profanity-loaded sentences. Raw text only, no markdown.
         
         USER DATA: ${context}
         `;
