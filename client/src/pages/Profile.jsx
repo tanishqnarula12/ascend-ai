@@ -260,17 +260,37 @@ const Profile = () => {
                                 Building momentum since <strong>{dateJoined}</strong>
                             </p>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="bg-background border border-border p-4 rounded-xl hover:border-primary/30 transition-colors">
-                                    <p className="text-[11px] text-primary font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5"><Sparkles size={12} /> Core Mindset</p>
-                                    <p className="text-sm text-foreground/90 leading-relaxed">
-                                        {randomMindsetMessage}
-                                    </p>
-                                </div>
-                                <div className="bg-background border border-border p-4 rounded-xl hover:border-primary/30 transition-colors">
-                                    <p className="text-[11px] text-primary font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5"><Brain size={12} /> System Philosophy</p>
-                                    <p className="text-sm text-foreground/90 leading-relaxed">
-                                        AscendAI is engineered to maintain your momentum. Remember to focus on consistency over intensity—break your massive goals into manageable daily bites to guarantee long-term progress.
+                            <div className="grid grid-cols-1 gap-4 mt-4">
+                                <div className="bg-background border border-primary/20 p-5 rounded-xl transition-all duration-300 relative overflow-hidden group">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                    <div className="flex justify-between items-center mb-3">
+                                        <p className="text-sm text-primary font-bold uppercase tracking-widest flex items-center gap-2">
+                                            <Brain size={16} /> The AI Reality Check
+                                        </p>
+                                        <button 
+                                            onClick={async () => {
+                                                const btn = document.getElementById('ai-verdict-btn');
+                                                const text = document.getElementById('ai-verdict-text');
+                                                btn.disabled = true;
+                                                btn.innerHTML = 'Connecting...';
+                                                text.innerHTML = 'Analyzing your discipline...';
+                                                try {
+                                                    const res = await api.get('/ai/verdict');
+                                                    text.innerHTML = res.data.verdict;
+                                                } catch(e) {
+                                                    text.innerHTML = 'The AI refused to speak. Try again later.';
+                                                }
+                                                btn.disabled = false;
+                                                btn.innerHTML = 'Generate Verdict';
+                                            }}
+                                            id="ai-verdict-btn"
+                                            className="text-xs bg-primary text-background px-3 py-1.5 rounded-lg hover:scale-105 transition-transform font-bold"
+                                        >
+                                            Generate Verdict
+                                        </button>
+                                    </div>
+                                    <p id="ai-verdict-text" className="text-[15px] text-foreground/90 leading-relaxed font-medium min-h-[60px] italic border-l-2 border-primary/50 pl-4 py-1">
+                                        Click the button above to receive a brutally honest review of your recent progress from the intelligence matrix. Warning: It does not hold back.
                                     </p>
                                 </div>
                             </div>

@@ -110,6 +110,51 @@ async function getCachedOrFetchGemini(userId) {
     }
 }
 
+export const getVerdict = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        if (!process.env.GEMINI_API_KEY) {
+            return res.json({ verdict: "AI Service is currently recalibrating. Check your API Key!" });
+        }
+
+        const tasksRes = await query(`
+            SELECT title, is_completed, created_at 
+            FROM tasks WHERE user_id = $1 
+            ORDER BY created_at DESC LIMIT 20
+        `, [userId]);
+        
+        const tasks = tasksRes.rows;
+        const total = tasks.length;
+        const completed = tasks.filter(t => t.is_completed).length;
+        const completionRate = total > 0 ? (completed / total) * 100 : 0;
+        
+        let context = `User has 0 tasks logged. Roast them for being completely inactive.`;
+        if (total > 0) {
+            context = `User has completed ${completed} out of their last ${total} tasks (${completionRate.toFixed(1)}% completion rate). 
+            Tasks include: ${tasks.slice(0,5).map(t => t.title).join(', ')}.`;
+        }
+
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
+
+        const prompt = `
+        You are an edgy, brutally honest, but secretly motivating AI inside a productivity app.
+        Look at this user's task data. 
+        If their completion rate is > 70%, HYPE THEM UP aggressively like a highly energetic coach. Praise them like a titan.
+        If their completion rate is < 70% or they have 0 tasks, ROAST THEM absolutely brutally. Call out their laziness, tell them their goals are slipping away, be sharply funny and savage, but end with a 1-sentence wake-up call to get them back to work.
+        Keep it under 3-4 short sentences. DO NOT use markdown, just raw text.
+        
+        USER DATA: ${context}
+        `;
+
+        const result = await model.generateContent(prompt);
+        res.json({ verdict: result.response.text().trim() });
+    } catch (e) {
+        console.error("Verdict Error:", e);
+        res.status(500).json({ verdict: "The AI is currently speechless at your data. (Server Error)" });
+    }
+};
+
 export const getInsights = async (req, res) => {
     try {
         const aiData = await getCachedOrFetchGemini(req.user.id);

@@ -1,10 +1,11 @@
 import express from 'express';
-import { getInsights, predictConsistency, getDailyBriefing, getAdvancedAnalytics, getMotivation } from '../controllers/aiController.js';
+import { getInsights, predictConsistency, getDailyBriefing, getAdvancedAnalytics, getMotivation, getVerdict } from '../controllers/aiController.js';
 import { startFocusSession, endFocusSession, getFocusStats } from '../controllers/focusController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+router.get('/verdict', protect, getVerdict);
 router.get('/insights', protect, getInsights);
 router.get('/briefing', protect, getDailyBriefing);
 router.get('/motivation', protect, getMotivation);
