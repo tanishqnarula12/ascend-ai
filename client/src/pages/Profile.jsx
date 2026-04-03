@@ -262,8 +262,8 @@ const Profile = () => {
 
                             <div className="grid grid-cols-1 gap-4 mt-4">
                                 <div className="bg-background border border-primary/20 p-5 rounded-xl transition-all duration-300 relative overflow-hidden group">
-                                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                    <div className="flex justify-between items-center mb-3">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                                    <div className="flex justify-between items-center mb-3 relative z-10">
                                         <p className="text-sm text-primary font-bold uppercase tracking-widest flex items-center gap-2">
                                             <Brain size={16} /> The AI Reality Check
                                         </p>
@@ -272,24 +272,25 @@ const Profile = () => {
                                                 const btn = document.getElementById('ai-verdict-btn');
                                                 const text = document.getElementById('ai-verdict-text');
                                                 btn.disabled = true;
+                                                const oldHtml = btn.innerHTML;
                                                 btn.innerHTML = 'Connecting...';
                                                 text.innerHTML = 'Analyzing your discipline...';
                                                 try {
                                                     const res = await api.get('/ai/verdict');
                                                     text.innerHTML = res.data.verdict;
                                                 } catch(e) {
-                                                    text.innerHTML = 'The AI refused to speak. Try again later.';
+                                                    text.innerHTML = 'The AI refused to speak. Wait 30s and try again.';
                                                 }
                                                 btn.disabled = false;
-                                                btn.innerHTML = 'Generate Verdict';
+                                                btn.innerHTML = oldHtml;
                                             }}
                                             id="ai-verdict-btn"
-                                            className="text-xs bg-primary text-background px-3 py-1.5 rounded-lg hover:scale-105 transition-transform font-bold"
+                                            className="text-xs bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:scale-105 transition-transform font-bold shadow-md relative z-10 cursor-pointer"
                                         >
                                             Generate Verdict
                                         </button>
                                     </div>
-                                    <p id="ai-verdict-text" className="text-[15px] text-foreground/90 leading-relaxed font-medium min-h-[60px] italic border-l-2 border-primary/50 pl-4 py-1">
+                                    <p id="ai-verdict-text" className="text-[15px] text-foreground/90 leading-relaxed font-medium min-h-[60px] italic border-l-2 border-primary/50 pl-4 py-1 relative z-10">
                                         Click the button above to receive a brutally honest review of your recent progress from the intelligence matrix. Warning: It does not hold back.
                                     </p>
                                 </div>
