@@ -1,6 +1,9 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { query } from '../config/db.js';
+import { OAuth2Client } from 'google-auth-library';
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || '922206656573-bfphrib1urduo6ekm1eferrofi0a869v.apps.googleusercontent.com');
 
 const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -67,6 +70,44 @@ export const login = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
+    }
+};
+
+export const googleLogin = async (req, res) => {
+    const { credential } = req.body;
+    try {
+        const ticket = await client.verifyIdToken({
+            idToken: credential,
+            audience: process.env.GOOGLE_CLIENT_ID || '922206656573-bfphrib1urduo6ekm1eferrofi0a869v.apps.googleusercontent.com',
+        });
+        const payload = ticket.getPayload();
+        const email = payload.email;
+        const name = payload.name;
+        
+        let user = await query('SELECT * FROM users WHERE email = $1', [email]);
+        
+        if (user.rows.length === 0) {
+            const salt = await bcrypt.genSalt(10);
+            const dummyPassword = await bcrypt.hash(email + process.env.JWT_SECRET, salt);
+            
+            const newUser = await query(
+                'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email, xp, level',
+                [name, email, dummyPassword]
+            );
+            user = { rows: [newUser.rows[0]] };
+        }
+        
+        res.json({
+            id: user.rows[0].id,
+            username: user.rows[0].username,
+            email: user.rows[0].email,
+            xp: user.rows[0].xp || 0,
+            level: user.rows[0].level || 1,
+            token: generateToken(user.rows[0].id),
+        });
+    } catch (error) {
+        console.error("Google Auth error:", error);
+        res.status(500).json({ message: 'Google authentication failed' });
     }
 };
 

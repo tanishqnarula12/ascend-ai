@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Login = () => {
-    const { login } = useAuth();
+    const { login, googleLogin } = useAuth();
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -19,6 +20,15 @@ const Login = () => {
         }
     };
 
+    const handleGoogleSuccess = async (credentialResponse) => {
+        try {
+            await googleLogin(credentialResponse.credential);
+            navigate('/dashboard');
+        } catch (err) {
+            setError('Google login failed. Please try again.');
+        }
+    };
+
     return (
         <div className="flex h-screen w-full items-center justify-center bg-background px-4">
             <div className="w-full max-w-md space-y-8 rounded-lg border bg-card p-8 shadow-sm">
@@ -27,7 +37,30 @@ const Login = () => {
                     <p className="mt-2 text-sm text-muted-foreground">Access your growth dashboard</p>
                 </div>
 
-                <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                <div className="mt-8">
+                    <div className="flex justify-center w-full mb-6">
+                        <GoogleLogin
+                            onSuccess={handleGoogleSuccess}
+                            onError={() => setError('Google login failed')}
+                            theme="filled_black"
+                            shape="pill"
+                            size="large"
+                            text="continue_with"
+                            width="100%"
+                        />
+                    </div>
+                    
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-border"></div>
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                            <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+                        </div>
+                    </div>
+                </div>
+
+                <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
                     {error && <div className="text-red-500 text-sm text-center">{error}</div>}
                     <div className="space-y-4 rounded-md shadow-sm">
                         <div>
@@ -65,9 +98,6 @@ const Login = () => {
                             type="submit"
                             className="group relative flex w-full justify-center rounded-md bg-primary py-2.5 px-4 text-sm font-semibold text-white hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all duration-200"
                         >
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                                {/* Icon if needed */}
-                            </span>
                             Sign in
                         </button>
                     </div>
