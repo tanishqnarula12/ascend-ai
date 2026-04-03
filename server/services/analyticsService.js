@@ -74,6 +74,7 @@ export const calculateConsistencyScore = async (userId) => {
 };
 
 export const getBurnoutRisk = async (userId) => {
+    let tasks = [];
     try {
         const tasksRes = await query(
             `SELECT difficulty, is_completed FROM tasks 
@@ -81,7 +82,7 @@ export const getBurnoutRisk = async (userId) => {
             [userId]
         );
 
-        const tasks = tasksRes.rows;
+        tasks = tasksRes.rows;
         const hardRatio = (tasks.filter(t => t.difficulty === 'hard').length / (tasks.length || 1)) * 100;
         const completionRate = (tasks.filter(t => t.is_completed).length / (tasks.length || 1)) * 100;
 
@@ -98,7 +99,7 @@ export const getBurnoutRisk = async (userId) => {
 
         return await aiResponse.json();
     } catch (error) {
-        return { risk_level: tasks ? (tasks.length === 0 ? 'N/A' : 'LOW') : 'LOW' };
+        return { risk_level: tasks.length === 0 ? 'LOW' : 'LOW' };
     }
 };
 
