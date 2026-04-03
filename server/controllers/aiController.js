@@ -21,30 +21,114 @@ export const getAdvancedAnalytics = async (req, res) => {
     }
 };
 
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+// In-memory cache to strictly protect Gemini's 15 calls/minute rate limit
+// Structure: Map(userId => { data: { insight, briefing, quote, etc }, timestamp: Date.now() })
+const aiCache = new Map();
+const CACHE_TTL = 10 * 60 * 1000; // Keep cache alive for 10 minutes per user
+
+// Consolidated AI Fetcher
+async function getCachedOrFetchGemini(userId) {
+    const now = Date.now();
+    const cached = aiCache.get(userId);
+    if (cached && (now - cached.timestamp < CACHE_TTL)) {
+        return cached.data;
+    }
+
+    try {
+        if (!process.env.GEMINI_API_KEY) {
+            throw new Error("GEMINI_API_KEY is not configured.");
+        }
+
+        // Fetch deep context from PostgreSQL to feed into Gemini
+        const tasksRes = await query(`
+            SELECT title, difficulty, is_completed, created_at 
+            FROM tasks WHERE user_id = $1 
+            ORDER BY created_at DESC LIMIT 30
+        `, [userId]);
+        
+        const tasks = tasksRes.rows;
+        let context = "The user has not logged any recent tasks.";
+        if (tasks.length > 0) {
+            context = `User's recent task history:\n` + tasks.map(t => 
+                `- "${t.title}" (Difficulty: ${t.difficulty}, Status: ${t.is_completed ? 'Completed' : 'Pending'})`
+            ).join('\n');
+        }
+
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        // Using ultra-fast flash model to prevent loading timeouts
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const prompt = `
+        You are 'AscendAI', a hyper-intelligent productivity coach integrated into a web dashboard.
+        Analyze the user's task history context and generate a consolidated JSON payload for their dashboard widgets.
+        Do NOT wrap the response in markdown code blocks. Output pure JSON ONLY.
+        
+        Required JSON Schema:
+        {
+          "insight": "1-2 sentence highly personalized insight explicitly referencing their recent tasks or completion rate.",
+          "productivity_score": (integer 1-100),
+          "mood_trend": "Improving/Stable/Declining",
+          "briefing": "1 sentence daily briefing advising them specifically which task they should tackle next based on difficulty balance.",
+          "focus_priority": "Deep Work/Light Tasks/Recovery",
+          "success_probability": (float between 0.1 and 0.99),
+          "recommended_difficulty": "Easy/Medium/Hard",
+          "quote": "A powerful motivational quote uniquely relevant to their current workload.",
+          "author": "Name of quote author"
+        }
+        
+        USER TASKS CONTEXT:
+        ${context}
+        `;
+
+        const result = await model.generateContent(prompt);
+        let rawText = result.response.text().trim();
+        
+        // Sanitize markdown blocks if model hallucinates them
+        if (rawText.startsWith('```json')) rawText = rawText.slice(7, -3).trim();
+        else if (rawText.startsWith('```')) rawText = rawText.slice(3, -3).trim();
+
+        const data = JSON.parse(rawText);
+        aiCache.set(userId, { data, timestamp: now });
+        return data;
+
+    } catch (e) {
+        console.error("Gemini AI Engine Generation Error:", e);
+        // Instant gracefully fallback if Gemini is offline or limit hit
+        return {
+            insight: "Keep stacking days! Consistency is the ultimate key.",
+            productivity_score: 80,
+            mood_trend: "Stable",
+            briefing: "Focus on closing down your highest priority pending task today.",
+            focus_priority: "Deep Work",
+            success_probability: 0.85,
+            recommended_difficulty: "Medium",
+            quote: "Small disciplines repeated with consistency every day lead to great achievements.",
+            author: "AscendAI Fallback"
+        };
+    }
+}
+
 export const getInsights = async (req, res) => {
     try {
-        const strategies = [
-            "Your peak productivity is observed between 10 AM and 2 PM.",
-            "Your task completion rate drops on weekends. Consider lighter goals for leisure.",
-            "You've maintained a 3-day streak! Consistency is the key to mastery.",
-            "Based on your patterns, you are at risk of burnout. Schedule a break."
-        ];
+        const aiData = await getCachedOrFetchGemini(req.user.id);
         res.json({
-            insight: strategies[Math.floor(Math.random() * strategies.length)],
-            productivity_score: Math.floor(Math.random() * (98 - 65 + 1)) + 65,
-            mood_trend: "Improving"
+            insight: aiData.insight,
+            productivity_score: aiData.productivity_score,
+            mood_trend: aiData.mood_trend
         });
     } catch (error) {
-        console.error('Insight Error:', error);
         res.status(500).json({ message: "Server error" });
     }
 };
 
 export const predictConsistency = async (req, res) => {
     try {
+        const aiData = await getCachedOrFetchGemini(req.user.id);
         res.json({
-            success_probability: (Math.random() * (0.99 - 0.7) + 0.7).toFixed(2),
-            recommended_difficulty: "Medium"
+            success_probability: aiData.success_probability,
+            recommended_difficulty: aiData.recommended_difficulty
         });
     } catch (error) {
         res.status(500).json({ message: "Server error" });
@@ -53,15 +137,10 @@ export const predictConsistency = async (req, res) => {
 
 export const getDailyBriefing = async (req, res) => {
     try {
-        const templates = [
-            "Today is a high-energy day. Focus on your 'Hard' tasks before 2 PM.",
-            "You have a 3-day streak going! Data suggests you're most productive when finishing small tasks first today.",
-            "Your goal 'Aesthetic Physique' is 80% complete. One final push on training today will trigger a milestone!",
-            "Warning: Wednesday is usually your lowest productivity day. Plan ahead to break the pattern."
-        ];
+        const aiData = await getCachedOrFetchGemini(req.user.id);
         res.json({
-            briefing: templates[Math.floor(Math.random() * templates.length)],
-            focus_priority: "Deep Work",
+            briefing: aiData.briefing,
+            focus_priority: aiData.focus_priority,
             estimated_completion: "6:00 PM"
         });
     } catch (error) {
@@ -71,19 +150,10 @@ export const getDailyBriefing = async (req, res) => {
 
 export const getMotivation = async (req, res) => {
     try {
-        const quotes = [
-            "The only way to do great work is to love what you do. – Steve Jobs",
-            "Don't count the days, make the days count. – Muhammad Ali",
-            "The secret of getting ahead is getting started. – Mark Twain",
-            "Your only limit is your mind.",
-            "A year from now you may wish you had started today.",
-            "Discipline is doing what needs to be done, even if you don't want to do it.",
-            "Small steps every day lead to big results.",
-            "Success is not final, failure is not fatal: it is the courage to continue that counts. – Winston Churchill"
-        ];
+        const aiData = await getCachedOrFetchGemini(req.user.id);
         res.json({
-            quote: quotes[Math.floor(Math.random() * quotes.length)],
-            author: "AscendAI Wisdom"
+            quote: aiData.quote,
+            author: aiData.author
         });
     } catch (error) {
         res.status(500).json({ message: "Server error" });
