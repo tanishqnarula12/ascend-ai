@@ -4,7 +4,7 @@ import { User, Mail, Shield, Key, Camera, Check, Brain, Sparkles, Calendar } fro
 import { motion } from 'framer-motion';
 
 const Profile = () => {
-    const { currentUser, setCurrentUser } = useAuth();
+    const { currentUser, setCurrentUser, api } = useAuth();
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
         username: currentUser?.username || '',
@@ -16,15 +16,22 @@ const Profile = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        
-        // Update user locally
-        const updatedUser = { ...currentUser, username: formData.username, email: formData.email };
-        setCurrentUser(updatedUser);
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        
-        setIsEditing(false);
+        try {
+            const response = await api.put('/auth/profile', { 
+                username: formData.username, 
+                email: formData.email,
+                photoUrl: currentUser?.photoUrl 
+            });
+            const updatedUser = response.data;
+            setCurrentUser(updatedUser);
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+            setIsEditing(false);
+        } catch (error) {
+            console.error('Failed to update profile', error);
+            alert('Failed to update profile: ' + (error.response?.data?.message || error.message));
+        }
     };
 
     const handlePhotoClick = () => {
@@ -36,11 +43,21 @@ const Profile = () => {
     const handlePhotoChange = (e) => {
         if (e.target.files && e.target.files[0]) {
             const fileReader = new FileReader();
-            fileReader.onload = () => {
+            fileReader.onload = async () => {
                 const base64Url = fileReader.result;
-                const updatedUser = { ...currentUser, photoUrl: base64Url };
-                setCurrentUser(updatedUser);
-                localStorage.setItem('user', JSON.stringify(updatedUser));
+                try {
+                    const response = await api.put('/auth/profile', { 
+                        username: currentUser.username, 
+                        email: currentUser.email,
+                        photoUrl: base64Url 
+                    });
+                    const updatedUser = response.data;
+                    setCurrentUser(updatedUser);
+                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                } catch (error) {
+                    console.error('Failed to upload photo', error);
+                    alert('Failed to upload photo');
+                }
             };
             fileReader.readAsDataURL(e.target.files[0]);
         }

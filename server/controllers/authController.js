@@ -25,7 +25,7 @@ export const register = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, salt);
 
         const newUser = await query(
-            'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email',
+            'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email, xp, level, photo_url',
             [username, email, hashedPassword]
         );
 
@@ -35,6 +35,7 @@ export const register = async (req, res) => {
             email: newUser.rows[0].email,
             xp: 0,
             level: 1,
+            photoUrl: newUser.rows[0].photo_url,
             token: generateToken(newUser.rows[0].id),
         });
     } catch (error) {
@@ -62,6 +63,7 @@ export const login = async (req, res) => {
                 email: user.rows[0].email,
                 xp: user.rows[0].xp || 0,
                 level: user.rows[0].level || 1,
+                photoUrl: user.rows[0].photo_url,
                 token: generateToken(user.rows[0].id),
             });
         } else {
@@ -91,7 +93,7 @@ export const googleLogin = async (req, res) => {
             const dummyPassword = await bcrypt.hash(email + process.env.JWT_SECRET, salt);
             
             const newUser = await query(
-                'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email, xp, level',
+                'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email, xp, level, photo_url',
                 [name, email, dummyPassword]
             );
             user = { rows: [newUser.rows[0]] };
@@ -103,6 +105,7 @@ export const googleLogin = async (req, res) => {
             email: user.rows[0].email,
             xp: user.rows[0].xp || 0,
             level: user.rows[0].level || 1,
+            photoUrl: user.rows[0].photo_url,
             token: generateToken(user.rows[0].id),
         });
     } catch (error) {
@@ -113,10 +116,42 @@ export const googleLogin = async (req, res) => {
 
 export const getProfile = async (req, res) => {
     try {
-        const user = await query('SELECT id, username, email, xp, level FROM users WHERE id = $1', [req.user.id]);
-        res.json(user.rows[0]);
+        const user = await query('SELECT id, username, email, xp, level, photo_url FROM users WHERE id = $1', [req.user.id]);
+        res.json({
+            ...user.rows[0],
+            photoUrl: user.rows[0].photo_url
+        });
     } catch (error) {
         console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+export const updateProfile = async (req, res) => {
+    const { username, email, photoUrl } = req.body;
+    try {
+        const updatedUser = await query(
+            'UPDATE users SET username = $1, email = $2, photo_url = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING id, username, email, xp, level, photo_url',
+            [username, email, photoUrl, req.user.id]
+        );
+
+        if (updatedUser.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json({
+            id: updatedUser.rows[0].id,
+            username: updatedUser.rows[0].username,
+            email: updatedUser.rows[0].email,
+            xp: updatedUser.rows[0].xp || 0,
+            level: updatedUser.rows[0].level || 1,
+            photoUrl: updatedUser.rows[0].photo_url
+        });
+    } catch (error) {
+        console.error(error);
+        if (error.code === '23505') {
+            return res.status(400).json({ message: 'Username or email already in use' });
+        }
         res.status(500).json({ message: 'Server error' });
     }
 };
