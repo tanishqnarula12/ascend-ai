@@ -57,8 +57,8 @@ async function getCachedOrFetchGemini(userId) {
         }
 
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        // Using stable generation model to prevent 404 unsupported version errors
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        // Using ultra-modern dynamic stable model pointer
+        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
         const prompt = `
         You are 'AscendAI', a hyper-intelligent productivity coach integrated into a web dashboard.

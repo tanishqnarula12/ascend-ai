@@ -43,19 +43,13 @@ export const calculateConsistencyScore = async (userId) => {
         );
         const streak = parseInt(streakRes.rows[0].streak) || 0;
 
-        // Call AI Service
-        const aiResponse = await fetchWithTimeout(`${process.env.AI_SERVICE_URL}/consistency`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                completion_rate: completionRate,
-                streak: streak,
-                hard_task_ratio: hardRatio,
-                momentum: completionRate // Simplified momentum for now
-            })
-        });
+        // Run local formula matching the AI server logic
+        const streakScore = Math.min(streak * 5, 100);
+        const diffBalance = 100 - Math.abs(hardRatio - 33) * 2;
+        const score = Math.round((completionRate * 0.4) + (streakScore * 0.2) + (diffBalance * 0.2) + (completionRate * 0.2));
+        const trend = completionRate > 50 ? 'up' : 'down';
 
-        const aiData = await aiResponse.json();
+        const aiData = { score, trend };
 
         // Save to DB
         await query(
@@ -83,23 +77,24 @@ export const getBurnoutRisk = async (userId) => {
         );
 
         tasks = tasksRes.rows;
-        const hardRatio = (tasks.filter(t => t.difficulty === 'hard').length / (tasks.length || 1)) * 100;
-        const completionRate = (tasks.filter(t => t.is_completed).length / (tasks.length || 1)) * 100;
+        if (tasks.length === 0) return { risk_level: 'N/A (Inactive)' };
 
-        const aiResponse = await fetchWithTimeout(`${process.env.AI_SERVICE_URL}/burnout`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                hard_task_ratio: hardRatio,
-                momentum: completionRate,
-                streak_broken: completionRate < 50,
-                tasks_this_week: tasks.length
-            })
-        });
+        const hardRatio = (tasks.filter(t => t.difficulty === 'hard').length / tasks.length) * 100;
+        const completionRate = (tasks.filter(t => t.is_completed).length / tasks.length) * 100;
 
-        return await aiResponse.json();
+        const decliningMomentum = completionRate < 40;
+        const streakBroken = completionRate < 50;
+
+        let risk = "LOW";
+        if (hardRatio > 60 && decliningMomentum) {
+            risk = "HIGH";
+        } else if (hardRatio > 40 || decliningMomentum || streakBroken) {
+            risk = "MODERATE";
+        }
+
+        return { risk_level: risk };
     } catch (error) {
-        return { risk_level: tasks.length === 0 ? 'LOW' : 'LOW' };
+        return { risk_level: 'LOW' };
     }
 };
 
