@@ -35,7 +35,7 @@ async function fetchWithFallback(prompt) {
     if (!process.env.GEMINI_API_KEY) throw new Error("No API Key");
     
     // We seamlessly cascade down the priority list if a specific node is choked!
-    const fallbackChain = ["gemini-2.0-flash", "gemini-flash-lite-latest", "gemini-2.5-flash"];
+    const fallbackChain = ["gemini-2.0-flash", "gemini-flash-lite-latest", "gemini-flash-latest", "gemini-1.5-flash", "gemini-2.5-flash"];
     for (const modelId of fallbackChain) {
         try {
             const model = genAI.getGenerativeModel({ model: modelId });
