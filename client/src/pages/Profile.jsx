@@ -203,11 +203,11 @@ const Profile = () => {
                             
                             <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-2">
                                 <Brain className="text-primary w-5 h-5" /> 
-                                AI Performance Insights
+                                Personal Blueprint
                             </h3>
                             <p className="text-sm text-muted-foreground mb-6 flex items-center gap-1.5 border-b border-border/60 pb-4">
                                 <Sparkles size={14} className="text-primary"/>
-                                Generating patterns since <strong>{dateJoined}</strong>
+                                Building momentum since <strong>{dateJoined}</strong>
                             </p>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
