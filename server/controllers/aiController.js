@@ -28,6 +28,26 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const aiCache = new Map();
 const CACHE_TTL = 10 * 60 * 1000; // Keep cache alive for 10 minutes per user
 
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "dummy");
+
+// Shared Multi-Model Fallback Engine to bypass Google 503 High Demand blocks
+async function fetchWithFallback(prompt) {
+    if (!process.env.GEMINI_API_KEY) throw new Error("No API Key");
+    
+    // We seamlessly cascade down the priority list if a specific node is choked!
+    const fallbackChain = ["gemini-2.0-flash", "gemini-flash-lite-latest", "gemini-2.5-flash"];
+    for (const modelId of fallbackChain) {
+        try {
+            const model = genAI.getGenerativeModel({ model: modelId });
+            const result = await model.generateContent(prompt);
+            return result;
+        } catch (err) {
+            console.log(`[AI Engine] Node ${modelId} failed (${err.message}). Cascading to backup node...`);
+        }
+    }
+    throw new Error("All backup AI compute nodes are currently overloaded.");
+}
+
 // Consolidated AI Fetcher
 async function getCachedOrFetchGemini(userId) {
     const now = Date.now();
@@ -56,10 +76,6 @@ async function getCachedOrFetchGemini(userId) {
             ).join('\n');
         }
 
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        // Using ultra-modern dynamic stable model pointer
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-
         const prompt = `
         You are 'AscendAI', a hyper-intelligent productivity coach integrated into a web dashboard.
         Analyze the user's task history context and generate a consolidated JSON payload for their dashboard widgets.
@@ -82,7 +98,7 @@ async function getCachedOrFetchGemini(userId) {
         ${context}
         `;
 
-        const result = await model.generateContent(prompt);
+        const result = await fetchWithFallback(prompt);
         let rawText = result.response.text().trim();
         
         // Sanitize markdown blocks if model hallucinates them
@@ -134,9 +150,6 @@ export const getVerdict = async (req, res) => {
             Tasks include: ${tasks.slice(0,5).map(t => t.title).join(', ')}.`;
         }
 
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
-
         const prompt = `
         You are an edgy, brutally honest, but secretly motivating AI inside a productivity app.
         Look at this user's task data. 
@@ -147,7 +160,7 @@ export const getVerdict = async (req, res) => {
         USER DATA: ${context}
         `;
 
-        const result = await model.generateContent(prompt);
+        const result = await fetchWithFallback(prompt);
         res.json({ verdict: result.response.text().trim() });
     } catch (e) {
         console.error("Verdict Error:", e);
