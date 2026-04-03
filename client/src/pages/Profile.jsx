@@ -49,6 +49,18 @@ const Profile = () => {
     // Calculate a display date
     const dateJoined = "March 2026";
 
+    const randomMindsetMessage = React.useMemo(() => {
+        const name = currentUser?.username || 'User';
+        const templates = [
+            <span key="1">"Success is the sum of small efforts repeated day in and day out." Keep up the amazing work, <strong className="font-bold text-primary">{name}</strong>. Every task you complete here is bringing you one step closer to your ultimate vision.</span>,
+            <span key="2">"Excellence is not an act, but a habit." The consistency you bring today is the foundation for your success tomorrow, <strong className="font-bold text-primary">{name}</strong>. Keep climbing!</span>,
+            <span key="3">Your potential is limitless, <strong className="font-bold text-primary">{name}</strong>. Focus on your most important tasks, block out the noise, and watch as you turn your goals into continuous achievements.</span>,
+            <span key="4">Big journeys begin with small steps. Stay disciplined, <strong className="font-bold text-primary">{name}</strong>, and trust the process. You are building an incredible system for your personal growth.</span>,
+            <span key="5">"Vision without execution is just a hallucination." You are here to execute, <strong className="font-bold text-primary">{name}</strong>. Let your daily actions echo your long-term ambitions.</span>
+        ];
+        return templates[Math.floor(Math.random() * templates.length)];
+    }, [currentUser?.username]);
+
     return (
         <div className="w-full pb-8">
             {/* Header Banner */}
@@ -200,12 +212,16 @@ const Profile = () => {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="bg-background border border-border p-4 rounded-xl hover:border-primary/30 transition-colors">
-                                    <p className="text-[11px] text-primary font-bold uppercase tracking-wider mb-2">Peak Productivity</p>
-                                    <p className="text-sm text-foreground/90 leading-relaxed">Your most focused sessions occur between <span className="font-bold text-foreground">10:00 AM - 1:00 PM</span>. You complete 45% more tasks during this window.</p>
+                                    <p className="text-[11px] text-primary font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5"><Sparkles size={12} /> Core Mindset</p>
+                                    <p className="text-sm text-foreground/90 leading-relaxed">
+                                        {randomMindsetMessage}
+                                    </p>
                                 </div>
                                 <div className="bg-background border border-border p-4 rounded-xl hover:border-primary/30 transition-colors">
-                                    <p className="text-[11px] text-primary font-bold uppercase tracking-wider mb-2">Completion Habits</p>
-                                    <p className="text-sm text-foreground/90 leading-relaxed">You consistently prioritize <span className="font-bold text-foreground">High Priority</span> goals early in the week, maintaining strong momentum.</p>
+                                    <p className="text-[11px] text-primary font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5"><Brain size={12} /> System Philosophy</p>
+                                    <p className="text-sm text-foreground/90 leading-relaxed">
+                                        AscendAI is engineered to maintain your momentum. Remember to focus on consistency over intensity—break your massive goals into manageable daily bites to guarantee long-term progress.
+                                    </p>
                                 </div>
                             </div>
                         </div>
