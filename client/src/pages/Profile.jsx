@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Mail, Shield, Key, Camera, Check, Brain, Sparkles, Calendar } from 'lucide-react';
+import { User, Mail, Shield, Key, Camera, Check, Brain, Sparkles, Calendar, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Profile = () => {
@@ -260,38 +260,66 @@ const Profile = () => {
                                 Building momentum since <strong>{dateJoined}</strong>
                             </p>
 
-                            <div className="grid grid-cols-1 gap-4 mt-4">
-                                <div className="bg-background border border-primary/20 p-5 rounded-xl transition-all duration-300 relative overflow-hidden group">
-                                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-                                    <div className="flex justify-between items-center mb-3 relative z-10">
-                                        <p className="text-sm text-primary font-bold uppercase tracking-widest flex items-center gap-2">
-                                            <Brain size={16} /> The AI Reality Check
-                                        </p>
-                                        <button 
-                                            onClick={async () => {
-                                                const btn = document.getElementById('ai-verdict-btn');
-                                                const text = document.getElementById('ai-verdict-text');
-                                                btn.disabled = true;
-                                                const oldHtml = btn.innerHTML;
-                                                btn.innerHTML = 'Connecting...';
-                                                text.innerHTML = 'Analyzing your discipline...';
-                                                try {
-                                                    const res = await api.get('/ai/verdict');
-                                                    text.innerHTML = res.data.verdict;
-                                                } catch(e) {
-                                                    text.innerHTML = 'The AI refused to speak. Wait 30s and try again.';
-                                                }
-                                                btn.disabled = false;
-                                                btn.innerHTML = oldHtml;
-                                            }}
-                                            id="ai-verdict-btn"
-                                            className="text-xs bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:scale-105 transition-transform font-bold shadow-md relative z-10 cursor-pointer"
-                                        >
-                                            Generate Verdict
-                                        </button>
-                                    </div>
-                                    <p id="ai-verdict-text" className="text-[15px] text-foreground/90 leading-relaxed font-medium min-h-[60px] italic border-l-2 border-primary/50 pl-4 py-1 relative z-10">
-                                        Click the button above to receive a brutally honest review of your recent progress from the intelligence matrix. Warning: It does not hold back.
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                <div className="bg-background border border-border p-4 rounded-xl hover:border-primary/30 transition-colors">
+                                    <p className="text-[11px] text-primary font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5"><Sparkles size={12} /> Core Mindset</p>
+                                    <p className="text-sm text-foreground/90 leading-relaxed">
+                                        {randomMindsetMessage}
+                                    </p>
+                                </div>
+                                <div className="bg-background border border-border p-4 rounded-xl hover:border-primary/30 transition-colors">
+                                    <p className="text-[11px] text-primary font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5"><Brain size={12} /> System Philosophy</p>
+                                    <p className="text-sm text-foreground/90 leading-relaxed">
+                                        AscendAI is engineered to maintain your momentum. Remember to focus on consistency over intensity—break your massive goals into manageable daily bites to guarantee long-term progress.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Standalone AI Verdict Section */}
+                        <div className="bg-card border border-primary/20 rounded-2xl p-6 shadow-sm relative overflow-hidden group mt-6">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-purple-500/10 transition-colors duration-500"></div>
+                            
+                            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-2">
+                                <Activity className="text-primary w-5 h-5" /> 
+                                The Ascend Matrix Reality Check
+                            </h3>
+                            <p className="text-sm text-muted-foreground mb-6 pb-2">
+                                Request a brutally honest audit of your recent task velocity and consistency.
+                            </p>
+
+                            <div className="bg-background border border-primary/20 p-5 rounded-xl transition-all duration-300 relative overflow-hidden group">
+                                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4 relative z-10">
+                                    <p className="text-sm text-primary font-bold uppercase tracking-widest flex items-center gap-2">
+                                        <Brain size={16} /> Matrix Output
+                                    </p>
+                                    <button 
+                                        onClick={async () => {
+                                            const btn = document.getElementById('ai-verdict-btn');
+                                            const text = document.getElementById('ai-verdict-text');
+                                            btn.disabled = true;
+                                            const oldHtml = btn.innerHTML;
+                                            btn.innerHTML = 'Connecting...';
+                                            text.innerHTML = 'Analyzing your discipline...';
+                                            try {
+                                                const res = await api.get('/ai/verdict');
+                                                text.innerHTML = res.data.verdict;
+                                            } catch(e) {
+                                                text.innerHTML = 'The AI refused to speak. Wait 30s and try again.';
+                                            }
+                                            btn.disabled = false;
+                                            btn.innerHTML = oldHtml;
+                                        }}
+                                        id="ai-verdict-btn"
+                                        className="text-sm bg-primary text-primary-foreground px-5 py-2.5 rounded-lg hover:scale-105 transition-transform font-bold shadow-md relative z-10 cursor-pointer w-full sm:w-auto"
+                                    >
+                                        Execute Reality Check
+                                    </button>
+                                </div>
+                                <div className="bg-black/20 p-4 rounded-lg border border-primary/10 relative z-10">
+                                    <p id="ai-verdict-text" className="text-[15px] text-foreground/90 leading-relaxed font-medium min-h-[60px] italic border-l-2 border-primary/50 pl-4 py-1">
+                                        System idle. Click the button above to receive a brutally honest review of your recent progress. Warning: It does not hold back.
                                     </p>
                                 </div>
                             </div>
