@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 
 const AuthContext = createContext();
 
@@ -9,19 +9,6 @@ export const AuthProvider = ({ children }) => {
     const [currentUser, setCurrentUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Configure axios defaults
-    const api = axios.create({
-        baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-        timeout: 60000, // Increased to 60s for Render cold starts
-    });
-
-    api.interceptors.request.use((config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    });
 
     useEffect(() => {
         console.log("[AUTH] Initializing state...");
