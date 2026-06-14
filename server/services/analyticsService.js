@@ -67,34 +67,121 @@ export const calculateConsistencyScore = async (userId) => {
     }
 };
 
+const clamp01 = (n) => Math.max(0, Math.min(1, n));
+
+const FACTOR_LABELS = {
+    workload: 'a heavy task volume',
+    difficulty: 'too many hard tasks stacked together',
+    incompletion: 'committing to more than you actually finish',
+    momentum: 'a sharp drop in your completion rate',
+    relentlessness: 'grinding every day with no rest',
+};
+
+const FACTOR_TIPS = {
+    workload: 'Trim the list — pick the 3 tasks that truly move the needle today.',
+    difficulty: 'Slot some easy wins between the hard tasks so you can recover.',
+    incompletion: 'Commit to fewer tasks and actually close them out — quality over quantity.',
+    momentum: 'Lower the bar for a day or two to rebuild your streak gently.',
+    relentlessness: 'Block out one deliberate rest day this week — recovery is part of progress.',
+};
+
+/**
+ * Weighted multi-factor burnout model.
+ * Instead of a couple of hard thresholds (which almost always returned "LOW"),
+ * we score five independent stress signals 0–100 and blend them into a single
+ * continuous risk score, then map that to a level. This reacts to real workload
+ * patterns so it can surface MODERATE / HIGH / SEVERE when they're warranted.
+ */
+export const computeBurnout = (rows, activeDays = 0) => {
+    if (!rows || rows.length === 0) {
+        return {
+            risk_level: 'N/A (Inactive)',
+            score: 0,
+            factors: {},
+            primary_driver: null,
+            recommendation: 'Log a few tasks so we can read your workload.',
+        };
+    }
+
+    const now = Date.now();
+    const sevenDaysAgo = now - 7 * 86400000;
+
+    const thisWeek = rows.filter(t => new Date(t.created_at).getTime() >= sevenDaysAgo);
+    const prevWeek = rows.filter(t => new Date(t.created_at).getTime() < sevenDaysAgo);
+
+    const rateOf = (arr) => arr.length ? (arr.filter(t => t.is_completed).length / arr.length) * 100 : 0;
+
+    const volume = thisWeek.length;
+    const compThis = rateOf(thisWeek);
+    const compPrev = rateOf(prevWeek);
+    const hardRatio = volume ? (thisWeek.filter(t => t.difficulty === 'hard').length / volume) * 100 : 0;
+
+    // --- Five stress factors, each scored 0–100 ---
+    // 1. Workload volume: ~10 tasks/week is healthy, 35+ is overload.
+    const workload = clamp01((volume - 10) / 25) * 100;
+    // 2. Difficulty strain: a wall of "hard" tasks with no easy recovery wins.
+    const difficulty = clamp01((hardRatio - 20) / 60) * 100;
+    // 3. Incompletion pressure: over-committing and leaving tasks unfinished (scaled by how much you took on).
+    const incompletion = clamp01((100 - compThis) / 100) * 100 * clamp01(volume / 6);
+    // 4. Momentum drop: this week meaningfully worse than last week.
+    const momentum = prevWeek.length ? clamp01((compPrev - compThis) / 40) * 100 : 0;
+    // 5. Relentlessness: active every single day with no rest day in the last week.
+    const relentlessness = clamp01((activeDays - 4) / 3) * 100;
+
+    const factors = {
+        workload: Math.round(workload),
+        difficulty: Math.round(difficulty),
+        incompletion: Math.round(incompletion),
+        momentum: Math.round(momentum),
+        relentlessness: Math.round(relentlessness),
+    };
+
+    const score = Math.round(
+        workload * 0.20 +
+        difficulty * 0.22 +
+        incompletion * 0.26 +
+        momentum * 0.22 +
+        relentlessness * 0.10
+    );
+
+    let risk_level = 'LOW';
+    if (score >= 80) risk_level = 'SEVERE';
+    else if (score >= 60) risk_level = 'HIGH';
+    else if (score >= 35) risk_level = 'MODERATE';
+
+    // Pick the dominant contributor for a tailored recommendation.
+    let primary_driver = null;
+    let recommendation = "You're well balanced right now — keep your current rhythm.";
+    const top = Object.entries(factors).sort((a, b) => b[1] - a[1])[0];
+    if (top && top[1] > 0 && score >= 35) {
+        primary_driver = top[0];
+        recommendation = `Main driver: ${FACTOR_LABELS[top[0]]}. ${FACTOR_TIPS[top[0]]}`;
+    }
+
+    return { risk_level, score, factors, primary_driver, recommendation };
+};
+
 export const getBurnoutRisk = async (userId) => {
-    let tasks = [];
     try {
+        // Pull two weeks so we can compare this week's momentum against last week's.
         const tasksRes = await query(
-            `SELECT difficulty, is_completed FROM tasks 
-             WHERE user_id = $1 AND created_at >= CURRENT_DATE - INTERVAL '7 days'`,
+            `SELECT difficulty, is_completed, created_at, completed_at FROM tasks
+             WHERE user_id = $1 AND created_at >= CURRENT_DATE - INTERVAL '14 days'`,
             [userId]
         );
 
-        tasks = tasksRes.rows;
-        if (tasks.length === 0) return { risk_level: 'N/A (Inactive)' };
+        // Distinct days with a completion in the last 7 days → detects "no rest day".
+        const activeDaysRes = await query(
+            `SELECT COUNT(DISTINCT DATE(completed_at)) AS days FROM tasks
+             WHERE user_id = $1 AND is_completed = true AND completed_at >= CURRENT_DATE - INTERVAL '7 days'`,
+            [userId]
+        );
+        const activeDays = parseInt(activeDaysRes.rows[0]?.days) || 0;
 
-        const hardRatio = (tasks.filter(t => t.difficulty === 'hard').length / tasks.length) * 100;
-        const completionRate = (tasks.filter(t => t.is_completed).length / tasks.length) * 100;
-
-        const decliningMomentum = completionRate < 40;
-        const streakBroken = completionRate < 50;
-
-        let risk = "LOW";
-        if (hardRatio > 60 && decliningMomentum) {
-            risk = "HIGH";
-        } else if (hardRatio > 40 || decliningMomentum || streakBroken) {
-            risk = "MODERATE";
-        }
-
-        return { risk_level: risk };
+        return computeBurnout(tasksRes.rows, activeDays);
     } catch (error) {
-        return { risk_level: 'LOW' };
+        console.error("Burnout Service Error:", error);
+        return { risk_level: 'LOW', score: 0, factors: {}, primary_driver: null, recommendation: 'Keep a steady, sustainable pace.' };
     }
 };
 

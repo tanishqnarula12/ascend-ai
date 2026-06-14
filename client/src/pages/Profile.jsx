@@ -1,7 +1,15 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Mail, Shield, Key, Camera, Check, Brain, Sparkles, Calendar, Activity } from 'lucide-react';
+import { User, Mail, Shield, Key, Camera, Check, Brain, Sparkles, Calendar, Activity, Flame, Skull } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+// Expressiveness presets for the Reality Check. Brutal unleashes uncensored profanity;
+// Normal and Hard tone it down for users who don't want the swearing.
+const EXPRESSIVENESS_LEVELS = [
+    { id: 'normal', label: 'Normal', icon: Sparkles, desc: 'Supportive & professional coaching.', accent: 'text-emerald-500', ring: 'ring-emerald-500', bg: 'bg-emerald-500' },
+    { id: 'hard', label: 'Hard', icon: Flame, desc: 'Blunt tough-love. No profanity.', accent: 'text-amber-500', ring: 'ring-amber-500', bg: 'bg-amber-500' },
+    { id: 'brutal', label: 'Brutal', icon: Skull, desc: 'Uncensored & savage. Explicit language.', accent: 'text-red-500', ring: 'ring-red-500', bg: 'bg-red-500' },
+];
 
 const Profile = () => {
     const { currentUser, setCurrentUser, api } = useAuth();
@@ -11,6 +19,24 @@ const Profile = () => {
         email: currentUser?.email || '',
     });
     const fileInputRef = useRef(null);
+
+    // Reality Check state
+    const [expressLevel, setExpressLevel] = useState('brutal');
+    const [verdict, setVerdict] = useState(null);
+    const [verdictLoading, setVerdictLoading] = useState(false);
+
+    const runRealityCheck = async () => {
+        setVerdictLoading(true);
+        setVerdict(null);
+        try {
+            const res = await api.get(`/ai/verdict?level=${expressLevel}`);
+            setVerdict(res.data.verdict);
+        } catch (e) {
+            setVerdict('The AI refused to speak. Wait 30s and try again.');
+        } finally {
+            setVerdictLoading(false);
+        }
+    };
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -281,12 +307,44 @@ const Profile = () => {
                             <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-3xl -mr-10 -mt-10 group-hover:bg-purple-500/10 transition-colors duration-500"></div>
                             
                             <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-2">
-                                <Activity className="text-primary w-5 h-5" /> 
+                                <Activity className="text-primary w-5 h-5" />
                                 The Ascend Matrix Reality Check
                             </h3>
-                            <p className="text-sm text-muted-foreground mb-6 pb-2">
-                                Request a brutally honest audit of your recent task velocity and consistency.
+                            <p className="text-sm text-muted-foreground mb-5 pb-2">
+                                Request an honest audit of your recent task velocity and consistency. Choose how hard the AI hits.
                             </p>
+
+                            {/* Expressiveness Filter */}
+                            <div className="mb-5 relative z-10">
+                                <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider mb-2">Expressiveness Level</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                    {EXPRESSIVENESS_LEVELS.map((lvl) => {
+                                        const Icon = lvl.icon;
+                                        const active = expressLevel === lvl.id;
+                                        return (
+                                            <button
+                                                key={lvl.id}
+                                                type="button"
+                                                onClick={() => setExpressLevel(lvl.id)}
+                                                className={`text-left p-3 rounded-xl border transition-all duration-200 ${active
+                                                    ? `border-transparent ring-2 ${lvl.ring} bg-secondary/60 shadow-sm`
+                                                    : 'border-border bg-background hover:border-primary/30 hover:bg-secondary/30'
+                                                    }`}
+                                            >
+                                                <span className={`flex items-center gap-1.5 font-bold text-sm ${active ? lvl.accent : 'text-foreground'}`}>
+                                                    <Icon size={15} /> {lvl.label}
+                                                </span>
+                                                <span className="block text-[11px] text-muted-foreground mt-1 leading-snug">{lvl.desc}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {expressLevel === 'brutal' && (
+                                    <p className="text-[11px] text-red-500/90 mt-2 flex items-center gap-1.5">
+                                        <Skull size={12} /> Heads up: Brutal mode uses explicit, uncensored language.
+                                    </p>
+                                )}
+                            </div>
 
                             <div className="bg-background border border-primary/20 p-5 rounded-xl transition-all duration-300 relative overflow-hidden group">
                                 <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
@@ -294,32 +352,19 @@ const Profile = () => {
                                     <p className="text-sm text-primary font-bold uppercase tracking-widest flex items-center gap-2">
                                         <Brain size={16} /> Matrix Output
                                     </p>
-                                    <button 
-                                        onClick={async () => {
-                                            const btn = document.getElementById('ai-verdict-btn');
-                                            const text = document.getElementById('ai-verdict-text');
-                                            btn.disabled = true;
-                                            const oldHtml = btn.innerHTML;
-                                            btn.innerHTML = 'Connecting...';
-                                            text.innerHTML = 'Analyzing your discipline...';
-                                            try {
-                                                const res = await api.get('/ai/verdict');
-                                                text.innerHTML = res.data.verdict;
-                                            } catch(e) {
-                                                text.innerHTML = 'The AI refused to speak. Wait 30s and try again.';
-                                            }
-                                            btn.disabled = false;
-                                            btn.innerHTML = oldHtml;
-                                        }}
-                                        id="ai-verdict-btn"
-                                        className="text-sm bg-primary text-primary-foreground px-5 py-2.5 rounded-lg hover:scale-105 transition-transform font-bold shadow-md relative z-10 cursor-pointer w-full sm:w-auto"
+                                    <button
+                                        onClick={runRealityCheck}
+                                        disabled={verdictLoading}
+                                        className="text-sm bg-primary text-primary-foreground px-5 py-2.5 rounded-lg hover:scale-105 transition-transform font-bold shadow-md relative z-10 cursor-pointer w-full sm:w-auto disabled:opacity-60 disabled:hover:scale-100 disabled:cursor-not-allowed"
                                     >
-                                        Execute Reality Check
+                                        {verdictLoading ? 'Connecting...' : 'Execute Reality Check'}
                                     </button>
                                 </div>
                                 <div className="bg-black/20 p-4 rounded-lg border border-primary/10 relative z-10">
-                                    <p id="ai-verdict-text" className="text-[15px] text-foreground/90 leading-relaxed font-medium min-h-[60px] italic border-l-2 border-primary/50 pl-4 py-1">
-                                        System idle. Click the button above to receive a brutally honest review of your recent progress. Warning: It does not hold back.
+                                    <p className="text-[15px] text-foreground/90 leading-relaxed font-medium min-h-[60px] italic border-l-2 border-primary/50 pl-4 py-1 whitespace-pre-line">
+                                        {verdictLoading
+                                            ? 'Analyzing your discipline...'
+                                            : (verdict || 'System idle. Pick an expressiveness level and click the button above to receive an honest review of your recent progress.')}
                                     </p>
                                 </div>
                             </div>

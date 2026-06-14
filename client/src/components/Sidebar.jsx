@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, CheckSquare, Target, LogOut, BarChart3, FileText, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, Target, LogOut, BarChart3, FileText, Sun, Moon, ListChecks } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -18,6 +18,7 @@ const Sidebar = () => {
         { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { to: '/goals', label: 'My Goals', icon: Target },
         { to: '/tasks', label: 'Daily Tasks', icon: CheckSquare },
+        { to: '/todo', label: 'Quick To-Do', icon: ListChecks },
         { to: '/analytics', label: 'Analytics', icon: BarChart3 },
         { to: '/reports', label: 'AI Reports', icon: FileText },
     ];

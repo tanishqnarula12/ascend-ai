@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Goals from './pages/Goals';
 import Tasks from './pages/Tasks';
+import QuickTodo from './pages/QuickTodo';
 import Analytics from './pages/Analytics';
 import Reports from './pages/Reports';
 import Profile from './pages/Profile';
@@ -38,6 +39,7 @@ function App() {
                         <Route path="/dashboard" element={<Dashboard />} />
                         <Route path="/goals" element={<Goals />} />
                         <Route path="/tasks" element={<Tasks />} />
+                        <Route path="/todo" element={<QuickTodo />} />
                         <Route path="/analytics" element={<Analytics />} />
                         <Route path="/reports" element={<Reports />} />
                         <Route path="/profile" element={<Profile />} />

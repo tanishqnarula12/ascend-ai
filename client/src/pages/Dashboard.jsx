@@ -19,6 +19,8 @@ const Dashboard = () => {
         consistencyScore: 0,
         consistencyTrend: 'stable',
         burnoutRisk: 'LOW',
+        burnoutScore: 0,
+        burnoutRecommendation: '',
         focusScore: 0,
         heatmapData: []
     });
@@ -74,6 +76,8 @@ const Dashboard = () => {
                     consistencyScore: adv.consistency?.score || 0,
                     consistencyTrend: adv.consistency?.trend || 'stable',
                     burnoutRisk: adv.burnout?.risk_level || 'LOW',
+                    burnoutScore: adv.burnout?.score || 0,
+                    burnoutRecommendation: adv.burnout?.recommendation || '',
                     focusScore: focus.focus_score || 0,
                     heatmapData: adv.heatmap || []
                 });
@@ -165,7 +169,7 @@ const Dashboard = () => {
 
     return (
         <div className="space-y-8 pb-12">
-            {stats.burnoutRisk === 'HIGH' && (
+            {(stats.burnoutRisk === 'HIGH' || stats.burnoutRisk === 'SEVERE') && (
                 <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
@@ -173,8 +177,8 @@ const Dashboard = () => {
                 >
                     <AlertCircle size={24} />
                     <div>
-                        <p className="font-bold">High Burnout Risk Detected</p>
-                        <p className="text-sm">You've been pushing hard. Consider reducing "Hard" tasks today to maintain long-term momentum.</p>
+                        <p className="font-bold">{stats.burnoutRisk === 'SEVERE' ? 'Severe' : 'High'} Burnout Risk Detected ({stats.burnoutScore}/100)</p>
+                        <p className="text-sm">{stats.burnoutRecommendation || "You've been pushing hard. Consider reducing \"Hard\" tasks today to maintain long-term momentum."}</p>
                     </div>
                 </motion.div>
             )}
@@ -370,6 +374,12 @@ const Dashboard = () => {
                 </div>
 
                 <div className="space-y-6">
+                    <BurnoutCard
+                        level={stats.burnoutRisk}
+                        score={stats.burnoutScore}
+                        recommendation={stats.burnoutRecommendation}
+                    />
+
                     <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-xl shadow-lg text-white relative overflow-hidden">
                         <div className="relative z-10">
                             <h3 className="text-lg font-bold flex items-center gap-2 mb-3">
@@ -411,6 +421,43 @@ const Dashboard = () => {
                 onClose={() => setIsBadgeModalOpen(false)}
                 stats={stats}
             />
+        </div>
+    );
+};
+
+const BURNOUT_STYLES = {
+    'LOW': { color: 'text-green-500', bar: 'bg-green-500', label: 'Low' },
+    'MODERATE': { color: 'text-yellow-500', bar: 'bg-yellow-500', label: 'Moderate' },
+    'HIGH': { color: 'text-orange-500', bar: 'bg-orange-500', label: 'High' },
+    'SEVERE': { color: 'text-red-500', bar: 'bg-red-500', label: 'Severe' },
+};
+
+const BurnoutCard = ({ level, score = 0, recommendation }) => {
+    const inactive = !level || level.startsWith('N/A');
+    const style = BURNOUT_STYLES[level] || { color: 'text-muted-foreground', bar: 'bg-muted-foreground', label: 'Inactive' };
+    const width = inactive ? 0 : Math.max(4, Math.min(100, score));
+
+    return (
+        <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
+            <div className="flex justify-between items-center mb-3">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                    <Flame size={16} className={inactive ? 'text-muted-foreground' : style.color} /> Burnout Risk
+                </h3>
+                <span className={`text-xs font-bold px-2 py-1 rounded-full bg-secondary ${inactive ? 'text-muted-foreground' : style.color}`}>
+                    {inactive ? 'Inactive' : `${style.label} · ${score}/100`}
+                </span>
+            </div>
+            <div className="h-2.5 w-full bg-secondary rounded-full overflow-hidden mb-3">
+                <div
+                    className={`h-full rounded-full transition-all duration-700 ease-out ${inactive ? 'bg-muted-foreground/30' : style.bar}`}
+                    style={{ width: `${width}%` }}
+                ></div>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+                {inactive
+                    ? 'Log a few tasks so we can read your workload.'
+                    : (recommendation || "You're well balanced right now — keep your current rhythm.")}
+            </p>
         </div>
     );
 };

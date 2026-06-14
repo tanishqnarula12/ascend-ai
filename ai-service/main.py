@@ -68,23 +68,100 @@ def calculate_consistency(data: dict):
         "trend": "up" if momentum > 50 else "down"
     }
 
+def _clamp01(n):
+    return max(0.0, min(1.0, n))
+
+FACTOR_LABELS = {
+    "workload": "a heavy task volume",
+    "difficulty": "too many hard tasks stacked together",
+    "incompletion": "committing to more than you actually finish",
+    "momentum": "a sharp drop in your completion rate",
+}
+
+FACTOR_TIPS = {
+    "workload": "Trim the list — pick the 3 tasks that truly move the needle today.",
+    "difficulty": "Slot some easy wins between the hard tasks so you can recover.",
+    "incompletion": "Commit to fewer tasks and actually close them out — quality over quantity.",
+    "momentum": "Lower the bar for a day or two to rebuild your streak gently.",
+}
+
+
+def compute_burnout(tasks_this_week, completion_rate, hard_ratio, prev_completion_rate=None):
+    """Weighted multi-factor burnout model (mirrors the Node analytics service).
+
+    Blends independent stress signals into one continuous 0-100 score so the
+    result reflects the real workload instead of almost always returning LOW.
+    """
+    if tasks_this_week == 0:
+        return {
+            "risk_level": "N/A (Inactive)",
+            "score": 0,
+            "factors": {},
+            "primary_driver": None,
+            "recommendation": "Log a few tasks so we can read your workload.",
+        }
+
+    # Factor 1: workload volume (~10/week healthy, 35+ overload)
+    workload = _clamp01((tasks_this_week - 10) / 25) * 100
+    # Factor 2: difficulty strain (too many hard tasks in a row)
+    difficulty = _clamp01((hard_ratio - 20) / 60) * 100
+    # Factor 3: incompletion pressure, scaled by how much was taken on
+    incompletion = _clamp01((100 - completion_rate) / 100) * 100 * _clamp01(tasks_this_week / 6)
+    # Factor 4: momentum drop vs last week (only if we have prior data)
+    if prev_completion_rate is not None:
+        momentum = _clamp01((prev_completion_rate - completion_rate) / 40) * 100
+        weights = {"workload": 0.22, "difficulty": 0.24, "incompletion": 0.30, "momentum": 0.24}
+    else:
+        momentum = 0
+        weights = {"workload": 0.30, "difficulty": 0.30, "incompletion": 0.40, "momentum": 0.0}
+
+    factors = {
+        "workload": round(workload),
+        "difficulty": round(difficulty),
+        "incompletion": round(incompletion),
+        "momentum": round(momentum),
+    }
+
+    score = round(
+        workload * weights["workload"]
+        + difficulty * weights["difficulty"]
+        + incompletion * weights["incompletion"]
+        + momentum * weights["momentum"]
+    )
+
+    if score >= 80:
+        risk = "SEVERE"
+    elif score >= 60:
+        risk = "HIGH"
+    elif score >= 35:
+        risk = "MODERATE"
+    else:
+        risk = "LOW"
+
+    primary_driver = None
+    recommendation = "You're well balanced right now — keep your current rhythm."
+    top_key = max(factors, key=factors.get)
+    if factors[top_key] > 0 and score >= 35:
+        primary_driver = top_key
+        recommendation = f"Main driver: {FACTOR_LABELS[top_key]}. {FACTOR_TIPS[top_key]}"
+
+    return {
+        "risk_level": risk,
+        "score": score,
+        "factors": factors,
+        "primary_driver": primary_driver,
+        "recommendation": recommendation,
+    }
+
+
 @app.post("/burnout")
 def detect_burnout(data: dict):
-    tasks_this_week = data.get('tasks_this_week', 1)
-    if tasks_this_week == 0:
-        return {"risk_level": "N/A (Inactive)"}
-
-    hard_ratio = data.get('hard_task_ratio', 0)
-    declining_momentum = data.get('momentum', 0) < 40
-    streak_broken = data.get('streak_broken', False)
-    
-    risk = "LOW"
-    if hard_ratio > 60 and declining_momentum:
-        risk = "HIGH"
-    elif hard_ratio > 40 or declining_momentum or streak_broken:
-        risk = "MODERATE"
-        
-    return {"risk_level": risk}
+    return compute_burnout(
+        tasks_this_week=data.get('tasks_this_week', 0),
+        completion_rate=data.get('completion_rate', 0),
+        hard_ratio=data.get('hard_task_ratio', 0),
+        prev_completion_rate=data.get('prev_completion_rate'),
+    )
 
 @app.post("/motivation")
 def get_daily_motivation(request: UserRequest):
@@ -124,22 +201,22 @@ def generate_weekly_report(data: dict):
             "burnout_risk": "N/A (Inactive)"
         }
     
-    # Advanced Burnout Calculation matching the live dashboard
+    # Advanced burnout calculation matching the live dashboard model
     hard_ratio = data.get('hard_task_ratio', 0)
-    declining_momentum = comp_rate < 40  # using low completion as proxy for lost momentum in weekly scale
-    streak_broken = comp_rate < 50 # proxy for broken habits
-    
-    risk = "LOW"
-    if hard_ratio > 60 and declining_momentum:
-        risk = "HIGH"
-    elif hard_ratio > 40 or declining_momentum or streak_broken:
-        risk = "MODERATE"
-    
+    burnout = compute_burnout(
+        tasks_this_week=tasks_this_week,
+        completion_rate=comp_rate,
+        hard_ratio=hard_ratio,
+        prev_completion_rate=data.get('prev_completion_rate'),
+    )
+
     lifetime_msg = f" You've completed {total_tasks} tasks overall!" if total_tasks > 0 else ""
-    
+    coaching = f" {burnout['recommendation']}" if burnout.get('recommendation') else ""
+
     return {
-        "ai_summary": f"Great work this week, {user_name}! You completed {comp_rate}% of your tasks.{lifetime_msg} Your focus was primarily on Career goals. Avoid loading too many 'Hard' tasks on Mondays to maintain momentum.",
-        "burnout_risk": risk
+        "ai_summary": f"Great work this week, {user_name}! You completed {comp_rate}% of your tasks.{lifetime_msg}{coaching}",
+        "burnout_risk": burnout["risk_level"],
+        "burnout_score": burnout["score"]
     }
 
 if __name__ == "__main__":

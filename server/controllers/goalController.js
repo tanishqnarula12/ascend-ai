@@ -1,5 +1,6 @@
 import { query } from '../config/db.js';
 import { fetchWithTimeout } from '../utils/fetchWithTimeout.js';
+import { getBurnoutRisk } from '../services/analyticsService.js';
 
 export const getReports = async (req, res) => {
     try {
@@ -63,11 +64,14 @@ export const getReports = async (req, res) => {
             const strongest = goalsRes.rows.length > 0 ? goalsRes.rows[0].title : null;
             const weakest = goalsRes.rows.length > 1 ? goalsRes.rows[goalsRes.rows.length - 1].title : null;
 
+            // Compute a real burnout reading from the live analytics model instead of hardcoding "LOW".
+            const burnout = tasks.length === 0 ? { risk_level: 'N/A', recommendation: '' } : await getBurnoutRisk(req.user.id);
+
             let aiData = {
-                ai_summary: tasks.length === 0 
+                ai_summary: tasks.length === 0
                     ? `Hi ${req.user.username}, we missed you this week! You haven't logged any tasks recently. Take your time, and jump back in when you're ready.`
-                    : `You completed ${completionRate}% of your tasks this week! Lifetime progress: ${totalCompletedEver} tasks. Keep up the consistency.`,
-                burnout_risk: tasks.length === 0 ? "N/A" : "LOW"
+                    : `You completed ${completionRate}% of your tasks this week! Lifetime progress: ${totalCompletedEver} tasks.${burnout.recommendation ? ' ' + burnout.recommendation : ' Keep up the consistency.'}`,
+                burnout_risk: burnout.risk_level
             };
 
             if (process.env.AI_SERVICE_URL) {

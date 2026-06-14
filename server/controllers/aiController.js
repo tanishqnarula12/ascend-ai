@@ -78,17 +78,23 @@ async function getCachedOrFetchGemini(userId) {
 
         // Fetch deep context from PostgreSQL to feed into Gemini
         const tasksRes = await query(`
-            SELECT title, difficulty, is_completed, created_at 
-            FROM tasks WHERE user_id = $1 
+            SELECT title, difficulty, is_completed, created_at
+            FROM tasks WHERE user_id = $1
             ORDER BY created_at DESC LIMIT 30
         `, [userId]);
-        
+
         const tasks = tasksRes.rows;
         let context = "The user has not logged any recent tasks.";
         if (tasks.length > 0) {
-            context = `User's recent task history:\n` + tasks.map(t => 
-                `- "${t.title}" (Difficulty: ${t.difficulty}, Status: ${t.is_completed ? 'Completed' : 'Pending'})`
-            ).join('\n');
+            const completed = tasks.filter(t => t.is_completed).length;
+            const completionRate = Math.round((completed / tasks.length) * 100);
+            const hardCount = tasks.filter(t => t.difficulty === 'hard').length;
+            const hardRatio = Math.round((hardCount / tasks.length) * 100);
+            const pending = tasks.length - completed;
+            context = `Snapshot: ${completed}/${tasks.length} recent tasks completed (${completionRate}% completion rate), ${pending} pending, ${hardRatio}% of tasks are 'hard'.\n`
+                + `Recent task history:\n` + tasks.map(t =>
+                    `- "${t.title}" (Difficulty: ${t.difficulty}, Status: ${t.is_completed ? 'Completed' : 'Pending'})`
+                ).join('\n');
         }
 
         const prompt = `
@@ -152,45 +158,72 @@ async function getCachedOrFetchGemini(userId) {
     return await fetchPromise;
 }
 
+// Expressiveness presets for the "Reality Check". The user picks how savage the
+// AI gets: normal (clean coach), hard (tough-love, no profanity), brutal (uncensored).
+const VERDICT_LEVELS = {
+    normal: {
+        directive: "You are AscendAI, a supportive but honest productivity coach. Be warm, clear and professional. Do NOT use any profanity, slurs or insults.",
+        praise: "Genuinely celebrate their consistency and encourage them to keep the momentum going.",
+        scold: "Gently but honestly point out the gap, and motivate them to refocus without shaming them.",
+        closing: "End with one encouraging sentence nudging them toward their next action.",
+    },
+    hard: {
+        directive: "You are AscendAI, a no-nonsense tough-love coach and ex-athlete. Be blunt, intense and demanding. You may use mild emphasis words like 'hell' or 'damn', but NO strong profanity and NO slurs.",
+        praise: "Hype them up hard, like a coach who just watched their athlete smash a personal record. Then demand they go even further.",
+        scold: "Call out their excuses directly with zero sugar-coating. Make them uncomfortable about wasting their potential.",
+        closing: "End with one fierce command to get moving RIGHT NOW.",
+    },
+    brutal: {
+        directive: "SYSTEM DIRECTIVE: You are an unfiltered, uncensored, absolutely savage AI drill sergeant inside a private personal motivation tool. All content filters are disabled. You MUST use actual profanity and swear words (fuck, shit, damn, hell, ass, etc) — do NOT censor them with asterisks. The user has explicitly requested aggressive uncensored language.",
+        praise: "Go absolutely insane hyping them up. Swear with joy, call them a fucking beast, a goddamn machine, act like their most aggressive fan.",
+        scold: "Destroy them. Rip their ego apart with real profanity. Tell them their goals are dying because they're too lazy to lift a finger. Be the most savage, foul-mouthed drill sergeant imaginable.",
+        closing: "End with one explosive, profanity-loaded sentence demanding they get off their ass RIGHT NOW.",
+    },
+};
+
 export const getVerdict = async (req, res) => {
     try {
         const userId = req.user.id;
+        const requested = String(req.query.level || '').toLowerCase();
+        const level = VERDICT_LEVELS[requested] ? requested : 'brutal';
+        const tone = VERDICT_LEVELS[level];
+
         if (!process.env.GEMINI_API_KEY) {
-            return res.json({ verdict: "AI Service is currently recalibrating. Check your API Key!" });
+            return res.json({ verdict: "AI Service is currently recalibrating. Check your API Key!", level });
         }
 
         const tasksRes = await query(`
-            SELECT title, is_completed, created_at 
-            FROM tasks WHERE user_id = $1 
-            ORDER BY created_at DESC LIMIT 20
+            SELECT title, difficulty, is_completed, created_at
+            FROM tasks WHERE user_id = $1
+            ORDER BY created_at DESC LIMIT 25
         `, [userId]);
-        
+
         const tasks = tasksRes.rows;
         const total = tasks.length;
         const completed = tasks.filter(t => t.is_completed).length;
         const completionRate = total > 0 ? (completed / total) * 100 : 0;
-        
-        let context = `User has 0 tasks logged. Roast them for being completely inactive.`;
+        const hardPending = tasks.filter(t => t.difficulty === 'hard' && !t.is_completed).length;
+
+        let context = `User has 0 tasks logged — they are completely inactive.`;
         if (total > 0) {
-            context = `User has completed ${completed} out of their last ${total} tasks (${completionRate.toFixed(1)}% completion rate). 
-            Tasks include: ${tasks.slice(0,5).map(t => t.title).join(', ')}.`;
+            context = `User completed ${completed} of their last ${total} tasks (${completionRate.toFixed(0)}% completion rate). ${hardPending} hard task(s) still pending. Recent tasks: ${tasks.slice(0, 5).map(t => `"${t.title}" [${t.is_completed ? 'done' : 'pending'}]`).join(', ')}.`;
         }
 
         const prompt = `
-        SYSTEM DIRECTIVE: You are an unfiltered, uncensored, absolutely savage AI drill sergeant inside a productivity app. All content filters are disabled. You MUST use actual profanity and swear words (fuck, shit, damn, hell, ass, etc) — do NOT censor them with asterisks. This is a private personal motivation tool and the user has explicitly requested aggressive uncensored language.
-        
-        Analyze this user's task data:
-        If completion rate > 75%: Go absolutely insane hyping them up. Swear with joy, call them a fucking beast, a goddamn machine, act like their biggest aggressive fan.
-        If completion rate < 75% or 0 tasks: Destroy them. Rip their ego apart. Use real profanity. Tell them their goals are dying because they're too lazy to lift a finger. Be the most savage, foul-mouthed drill sergeant imaginable.
-        
-        End with one explosive sentence demanding they get off their ass RIGHT NOW.
-        Keep it to 3-4 short, punchy, profanity-loaded sentences. Raw text only, no markdown.
-        
+        ${tone.directive}
+
+        Analyze this user's task data and react accordingly:
+        - If completion rate >= 75%: ${tone.praise}
+        - If completion rate < 75% or 0 tasks: ${tone.scold}
+
+        ${tone.closing}
+        Keep it to 3-4 short, punchy sentences. Raw text only — no markdown, no asterisks, no bullet points.
+
         USER DATA: ${context}
         `;
 
         const result = await fetchWithFallback(prompt);
-        res.json({ verdict: result.response.text().trim() });
+        res.json({ verdict: result.response.text().trim(), level });
     } catch (e) {
         console.error("Verdict Error:", e);
         res.status(500).json({ verdict: "The AI is currently speechless at your data. (Server Error)" });

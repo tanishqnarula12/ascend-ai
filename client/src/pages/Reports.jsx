@@ -3,6 +3,17 @@ import api from '../services/api';
 import { FileText, Download, Calendar, Target, AlertTriangle, Lightbulb, CheckCircle, AlertCircle, Square } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+// Map graded burnout levels to colour classes for the report card.
+const burnoutStyle = (risk) => {
+    switch ((risk || '').toUpperCase()) {
+        case 'SEVERE': return { box: 'bg-red-600/10 border-red-600/20', text: 'text-red-600' };
+        case 'HIGH': return { box: 'bg-orange-500/10 border-orange-500/20', text: 'text-orange-500' };
+        case 'MODERATE': return { box: 'bg-yellow-500/10 border-yellow-500/20', text: 'text-yellow-500' };
+        case 'LOW': return { box: 'bg-green-500/10 border-green-500/20', text: 'text-green-500' };
+        default: return { box: 'bg-secondary/50 border-border', text: 'text-muted-foreground' };
+    }
+};
+
 const Reports = () => {
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -109,8 +120,8 @@ const Reports = () => {
                                         </div>
                                     </div>
 
-                                    <div className={`p-6 rounded-xl border ${report.burnout_risk === 'HIGH' ? 'bg-red-500/10 border-red-500/20' : 'bg-green-500/10 border-green-500/20'}`}>
-                                        <h4 className={`font-bold flex items-center gap-2 mb-2 ${report.burnout_risk === 'HIGH' ? 'text-red-500' : 'text-green-500'}`}>
+                                    <div className={`p-6 rounded-xl border ${burnoutStyle(report.burnout_risk).box}`}>
+                                        <h4 className={`font-bold flex items-center gap-2 mb-2 ${burnoutStyle(report.burnout_risk).text}`}>
                                             <AlertTriangle size={18} /> Burnout Risk
                                         </h4>
                                         <p className="text-xs font-medium uppercase tracking-widest">{report.burnout_risk}</p>
