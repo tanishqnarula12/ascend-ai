@@ -5,7 +5,17 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import Heatmap from '../components/Heatmap';
 import BadgeModal from '../components/BadgeModal';
 import { motion } from 'framer-motion';
-import { AlertCircle, Zap, TrendingUp, CheckCircle, Award, BarChart3, Clock, Flame, Square } from 'lucide-react';
+import { AlertCircle, Zap, TrendingUp, CheckCircle, Award, BarChart3, Clock, Flame, Square, ListChecks, Plus, Circle, CheckCircle2, Trash2, ArrowRight } from 'lucide-react';
+
+// Shared localStorage key with the full Quick To-Do page
+const TODO_KEY = 'ascendai_quick_todos';
+const loadTodos = () => {
+    try {
+        const raw = localStorage.getItem(TODO_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+};
 
 const Dashboard = () => {
     const { currentUser } = useAuth();
@@ -31,6 +41,24 @@ const Dashboard = () => {
     const [weeklyHabits, setWeeklyHabits] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // Quick To-Do widget state — synced to localStorage (same key as /todo page)
+    const [todos, setTodos] = useState(loadTodos);
+    const [todoInput, setTodoInput] = useState('');
+
+    const saveTodos = (next) => {
+        setTodos(next);
+        localStorage.setItem(TODO_KEY, JSON.stringify(next));
+    };
+    const addTodo = (e) => {
+        e.preventDefault();
+        const val = todoInput.trim();
+        if (!val) return;
+        saveTodos([{ id: Date.now(), text: val, done: false }, ...todos]);
+        setTodoInput('');
+    };
+    const toggleTodo = (id) => saveTodos(todos.map(t => t.id === id ? { ...t, done: !t.done } : t));
+    const removeTodo = (id) => saveTodos(todos.filter(t => t.id !== id));
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -253,6 +281,85 @@ const Dashboard = () => {
                         {briefing?.briefing || "Calculate your path to success."}
                     </p>
                 </div>
+            </div>
+
+            {/* Quick To-Do Widget */}
+            <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-border">
+                    <h3 className="text-base font-bold flex items-center gap-2">
+                        <ListChecks size={18} className="text-primary" /> Quick To-Do
+                        {todos.filter(t => !t.done).length > 0 && (
+                            <span className="ml-1 text-xs font-bold bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                                {todos.filter(t => !t.done).length}
+                            </span>
+                        )}
+                    </h3>
+                    <a href="/todo" className="text-xs text-primary font-semibold flex items-center gap-1 hover:underline">
+                        See all <ArrowRight size={13} />
+                    </a>
+                </div>
+
+                {/* Inline add form */}
+                <form onSubmit={addTodo} className="flex items-center gap-2 px-6 py-3 border-b border-border/60">
+                    <input
+                        type="text"
+                        value={todoInput}
+                        onChange={e => setTodoInput(e.target.value)}
+                        placeholder="Add a quick to-do…"
+                        className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/60"
+                    />
+                    <button
+                        type="submit"
+                        className="flex-shrink-0 bg-primary text-primary-foreground rounded-lg p-1.5 hover:bg-primary/90 transition-colors"
+                        aria-label="Add"
+                    >
+                        <Plus size={16} />
+                    </button>
+                </form>
+
+                {/* Todo list — shows up to 6 items, scrollable */}
+                <div className="divide-y divide-border/50 max-h-[260px] overflow-y-auto">
+                    {todos.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-8 px-6">
+                            Nothing here yet — add a to-do above!
+                        </p>
+                    ) : (
+                        todos.slice(0, 10).map(todo => (
+                            <div
+                                key={todo.id}
+                                className={`group flex items-center gap-3 px-6 py-3 transition-colors hover:bg-secondary/30 ${todo.done ? 'opacity-50' : ''}`}
+                            >
+                                <button
+                                    onClick={() => toggleTodo(todo.id)}
+                                    className={`flex-shrink-0 transition-colors ${todo.done ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
+                                    aria-label="Toggle"
+                                >
+                                    {todo.done ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+                                </button>
+                                <p className={`flex-1 text-sm truncate ${todo.done ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                                    {todo.text}
+                                </p>
+                                <button
+                                    onClick={() => removeTodo(todo.id)}
+                                    className="flex-shrink-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                    aria-label="Delete"
+                                >
+                                    <Trash2 size={15} />
+                                </button>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                {/* Progress bar at the bottom */}
+                {todos.length > 0 && (
+                    <div className="h-1 w-full bg-secondary">
+                        <div
+                            className="h-full bg-primary transition-all duration-500"
+                            style={{ width: `${Math.round((todos.filter(t => t.done).length / todos.length) * 100)}%` }}
+                        />
+                    </div>
+                )}
             </div>
 
             {/* Weekly Habits Grid (Replaced Heatmap) */}
