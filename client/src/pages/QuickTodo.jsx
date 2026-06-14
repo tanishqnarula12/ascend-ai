@@ -2,16 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, ListChecks, CheckCircle2, Circle, Eraser } from 'lucide-react';
 
-// A lightweight personal checklist that lives entirely in the browser (localStorage).
-// It's intentionally separate from the gamified "Daily Tasks" so users have a
-// zero-friction scratchpad for quick to-dos without touching their XP/streak data.
+// Lightweight daily checklist — lives in localStorage, resets each midnight.
+// Separate from gamified Daily Tasks so it doesn't touch XP/streak data.
 const STORAGE_KEY = 'ascendai_quick_todos';
+const TODAY = new Date().toISOString().split('T')[0];
 
 const loadTodos = () => {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : [];
-        return Array.isArray(parsed) ? parsed : [];
+        // Only keep todos created today — anything older is auto-expired
+        return Array.isArray(parsed) ? parsed.filter(t => t.date === TODAY) : [];
     } catch {
         return [];
     }
@@ -36,7 +37,7 @@ const QuickTodo = () => {
         e.preventDefault();
         const value = text.trim();
         if (!value) return;
-        setTodos(prev => [{ id: Date.now(), text: value, done: false }, ...prev]);
+        setTodos(prev => [{ id: Date.now(), text: value, done: false, date: TODAY }, ...prev]);
         setText('');
     };
 

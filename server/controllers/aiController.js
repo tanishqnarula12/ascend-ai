@@ -84,67 +84,91 @@ async function getCachedOrFetchGemini(userId) {
         `, [userId]);
 
         const tasks = tasksRes.rows;
-        let context = "The user has not logged any recent tasks.";
-        if (tasks.length > 0) {
-            const completed = tasks.filter(t => t.is_completed).length;
-            const completionRate = Math.round((completed / tasks.length) * 100);
-            const hardCount = tasks.filter(t => t.difficulty === 'hard').length;
-            const hardRatio = Math.round((hardCount / tasks.length) * 100);
-            const pending = tasks.length - completed;
-            context = `Snapshot: ${completed}/${tasks.length} recent tasks completed (${completionRate}% completion rate), ${pending} pending, ${hardRatio}% of tasks are 'hard'.\n`
-                + `Recent task history:\n` + tasks.map(t =>
-                    `- "${t.title}" (Difficulty: ${t.difficulty}, Status: ${t.is_completed ? 'Completed' : 'Pending'})`
-                ).join('\n');
+
+        // Short-circuit: no tasks → return a zero-state payload immediately,
+        // never let Gemini invent fake productivity numbers from thin air.
+        if (tasks.length === 0) {
+            const noDataPayload = {
+                insight: "No tasks logged yet. Add your first task to unlock personalized AI insights.",
+                productivity_score: 0,
+                mood_trend: "Stable",
+                briefing: "Start your journey — add your first task to get a personalized AI game plan.",
+                focus_priority: "Light Tasks",
+                success_probability: 0,
+                recommended_difficulty: "Easy",
+                quote: "The journey of a thousand miles begins with a single step.",
+                author: "Lao Tzu"
+            };
+            aiCache.set(userId, { data: noDataPayload, timestamp: Date.now() });
+            return noDataPayload;
         }
+
+        const completed = tasks.filter(t => t.is_completed).length;
+        const completionRate = Math.round((completed / tasks.length) * 100);
+        const hardCount = tasks.filter(t => t.difficulty === 'hard').length;
+        const hardRatio = Math.round((hardCount / tasks.length) * 100);
+        const pending = tasks.length - completed;
+        const context = `Snapshot: ${completed}/${tasks.length} recent tasks completed (${completionRate}% completion rate), ${pending} pending, ${hardRatio}% of tasks are 'hard'.\n`
+            + `Recent task history:\n` + tasks.map(t =>
+                `- "${t.title}" (Difficulty: ${t.difficulty}, Status: ${t.is_completed ? 'Completed' : 'Pending'})`
+            ).join('\n');
 
         const prompt = `
         You are 'AscendAI', a hyper-intelligent productivity coach integrated into a web dashboard.
-        Analyze the user's task history context and generate a consolidated JSON payload for their dashboard widgets.
+        Analyze the user's REAL task data below and generate a consolidated JSON payload. Be accurate — do NOT invent numbers.
         Do NOT wrap the response in markdown code blocks. Output pure JSON ONLY.
-        
+
+        CRITICAL RULES:
+        - productivity_score MUST reflect the actual completion rate (${completionRate}%). Do not inflate it.
+        - All fields must be grounded in the actual task data provided.
+        - If completion rate is 0%, set productivity_score to 0 and mood_trend to "Declining".
+
         Required JSON Schema:
         {
-          "insight": "1-2 sentence highly personalized insight explicitly referencing their recent tasks or completion rate.",
-          "productivity_score": (integer 1-100),
+          "insight": "1-2 sentence highly personalized insight explicitly referencing their actual completion rate and task names.",
+          "productivity_score": (integer 0-100, MUST match the actual ${completionRate}% completion rate closely),
           "mood_trend": "Improving/Stable/Declining",
-          "briefing": "1 sentence daily briefing advising them specifically which task they should tackle next based on difficulty balance.",
+          "briefing": "1 sentence advising which specific task to tackle next based on difficulty balance.",
           "focus_priority": "Deep Work/Light Tasks/Recovery",
-          "success_probability": (float between 0.1 and 0.99),
+          "success_probability": (float 0.0-0.99, based on actual completion rate),
           "recommended_difficulty": "Easy/Medium/Hard",
-          "quote": "A powerful motivational quote uniquely relevant to their current workload.",
+          "quote": "A powerful motivational quote relevant to their current workload.",
           "author": "Name of quote author"
         }
-        
+
         USER TASKS CONTEXT:
         ${context}
         `;
 
         const result = await fetchWithFallback(prompt);
         let rawText = result.response.text().trim();
-        
+
         // Sanitize markdown blocks if model hallucinates them
         if (rawText.startsWith('```json')) rawText = rawText.slice(7, -3).trim();
         else if (rawText.startsWith('```')) rawText = rawText.slice(3, -3).trim();
 
             const data = JSON.parse(rawText);
-            
-            // Overwrite the cache promise with the final completed data!
+            // Clamp the score so Gemini can never return something wildly off from reality
+            if (typeof data.productivity_score === 'number') {
+                data.productivity_score = Math.max(0, Math.min(100, Math.round(data.productivity_score)));
+            }
+
             aiCache.set(userId, { data, timestamp: Date.now() });
             return data;
 
         } catch (e) {
             console.error("Gemini AI Engine Generation Error:", e);
-            // Instant gracefully fallback if Gemini is offline or limit hit
+            // Fallback uses actual completion rate if available, not a made-up 80
             const fallbackData = {
-                insight: "Keep stacking days! Consistency is the ultimate key.",
-                productivity_score: 80,
+                insight: "AI analysis temporarily unavailable. Keep logging tasks to unlock insights.",
+                productivity_score: 0,
                 mood_trend: "Stable",
-                briefing: "Focus on closing down your highest priority pending task today.",
+                briefing: "Focus on closing your highest-priority pending task today.",
                 focus_priority: "Deep Work",
-                success_probability: 0.85,
+                success_probability: 0.5,
                 recommended_difficulty: "Medium",
                 quote: "Small disciplines repeated with consistency every day lead to great achievements.",
-                author: "AscendAI Fallback"
+                author: "John C. Maxwell"
             };
             aiCache.set(userId, { data: fallbackData, timestamp: Date.now() });
             return fallbackData;
