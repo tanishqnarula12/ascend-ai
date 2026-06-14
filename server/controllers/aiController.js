@@ -23,10 +23,11 @@ export const getAdvancedAnalytics = async (req, res) => {
 
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
-// In-memory cache to strictly protect Gemini's 15 calls/minute rate limit
-// Structure: Map(userId => { data: { insight, briefing, quote, etc }, timestamp: Date.now() })
+// In-memory cache to protect Gemini's rate limit.
+// TTL is short (3 min) so insights feel real-time — force-refresh via DELETE /ai/cache.
+// Structure: Map(userId => { data, timestamp, promise })
 const aiCache = new Map();
-const CACHE_TTL = 10 * 60 * 1000; // Keep cache alive for 10 minutes per user
+const CACHE_TTL = 3 * 60 * 1000;
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "dummy");
 
@@ -55,88 +56,139 @@ async function fetchWithFallback(prompt) {
     throw new Error("All backup AI compute nodes are currently overloaded.");
 }
 
-// Consolidated AI Fetcher with Thundering Herd Promise-based Protection
-async function getCachedOrFetchGemini(userId) {
+// Build a rich real-time context: today's tasks first, then recent history.
+// This lets Gemini react to what the user is doing RIGHT NOW, not just their archive.
+async function buildContext(userId) {
+    const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+
+    const [todayRes, historyRes, streakRes] = await Promise.all([
+        query(`
+            SELECT title, difficulty, is_completed
+            FROM tasks
+            WHERE user_id = $1 AND DATE(created_at AT TIME ZONE 'UTC') = CURRENT_DATE
+            ORDER BY is_completed ASC, created_at DESC
+        `, [userId]),
+        query(`
+            SELECT title, difficulty, is_completed, created_at
+            FROM tasks
+            WHERE user_id = $1 AND DATE(created_at AT TIME ZONE 'UTC') < CURRENT_DATE
+            ORDER BY created_at DESC LIMIT 20
+        `, [userId]),
+        query(`
+            WITH DailyCompletions AS (
+                SELECT DISTINCT DATE(completed_at) as date FROM tasks
+                WHERE user_id = $1 AND is_completed = true
+            ), Streak AS (
+                SELECT date, (CURRENT_DATE - date)::integer as days_ago FROM DailyCompletions
+                WHERE (CURRENT_DATE - date)::integer >= 0
+            ), Groups AS (
+                SELECT days_ago, days_ago - ROW_NUMBER() OVER (ORDER BY days_ago) as grp FROM Streak
+            )
+            SELECT COUNT(*) as streak FROM Groups
+            WHERE grp = (SELECT MIN(grp) FROM Groups WHERE days_ago IN (0,1))
+        `, [userId])
+    ]);
+
+    const todayTasks = todayRes.rows;
+    const todayDone = todayTasks.filter(t => t.is_completed);
+    const todayPending = todayTasks.filter(t => !t.is_completed);
+    const todayRate = todayTasks.length > 0 ? Math.round((todayDone.length / todayTasks.length) * 100) : 0;
+    const streak = parseInt(streakRes.rows[0]?.streak) || 0;
+
+    const allForScore = [...todayTasks, ...historyRes.rows];
+    const overallDone = allForScore.filter(t => t.is_completed).length;
+    const overallRate = allForScore.length > 0 ? Math.round((overallDone / allForScore.length) * 100) : 0;
+
+    let ctx = '';
+
+    if (todayTasks.length === 0 && historyRes.rows.length === 0) return { context: null, todayRate: 0, overallRate: 0, streak };
+
+    ctx += `=== TODAY (${todayStr}) ===\n`;
+    if (todayTasks.length === 0) {
+        ctx += `No tasks added yet today.\n`;
+    } else {
+        ctx += `Progress: ${todayDone.length}/${todayTasks.length} tasks completed today (${todayRate}%)\n`;
+        if (todayDone.length > 0) ctx += `✅ Done: ${todayDone.map(t => `"${t.title}" [${t.difficulty}]`).join(', ')}\n`;
+        if (todayPending.length > 0) ctx += `⏳ Still pending: ${todayPending.map(t => `"${t.title}" [${t.difficulty}]`).join(', ')}\n`;
+    }
+    ctx += `Current streak: ${streak} day${streak !== 1 ? 's' : ''}\n`;
+
+    if (historyRes.rows.length > 0) {
+        ctx += `\n=== RECENT HISTORY (last ${historyRes.rows.length} tasks, ${overallRate}% overall) ===\n`;
+        ctx += historyRes.rows.map(t =>
+            `- "${t.title}" [${t.difficulty}] → ${t.is_completed ? '✅ done' : '⏳ pending'}`
+        ).join('\n');
+    }
+
+    return { context: ctx, todayRate, overallRate, streak };
+}
+
+// Consolidated AI Fetcher — supports force-refresh via forceRefresh flag
+async function getCachedOrFetchGemini(userId, forceRefresh = false) {
     const now = Date.now();
     const cached = aiCache.get(userId);
-    
-    // If we have a resolved cache payload that's not expired, return it instantly
-    if (cached && cached.data && (now - cached.timestamp < CACHE_TTL)) {
+
+    if (!forceRefresh && cached && cached.data && (now - cached.timestamp < CACHE_TTL)) {
         return cached.data;
     }
 
-    // If there is ALREADY a pending request to Google, wait for it instead of spamming 4 parallel ones!
-    if (cached && cached.promise) {
+    // If there is ALREADY a pending request to Google, wait for it (thundering herd guard)
+    if (!forceRefresh && cached && cached.promise) {
         return await cached.promise;
     }
 
     const fetchPromise = (async () => {
         try {
-            if (!process.env.GEMINI_API_KEY) {
-                throw new Error("GEMINI_API_KEY is not configured.");
+            if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured.");
+
+            const { context, todayRate, overallRate } = await buildContext(userId);
+
+            if (!context) {
+                const noDataPayload = {
+                    insight: "No tasks logged yet. Add your first task to unlock personalized AI insights.",
+                    productivity_score: 0,
+                    mood_trend: "Stable",
+                    briefing: "Start your journey — add your first task to get a personalized AI game plan.",
+                    focus_priority: "Light Tasks",
+                    success_probability: 0,
+                    recommended_difficulty: "Easy",
+                    quote: "The journey of a thousand miles begins with a single step.",
+                    author: "Lao Tzu"
+                };
+                aiCache.set(userId, { data: noDataPayload, timestamp: Date.now() });
+                return noDataPayload;
             }
 
-        // Fetch deep context from PostgreSQL to feed into Gemini
-        const tasksRes = await query(`
-            SELECT title, difficulty, is_completed, created_at
-            FROM tasks WHERE user_id = $1
-            ORDER BY created_at DESC LIMIT 30
-        `, [userId]);
-
-        const tasks = tasksRes.rows;
-
-        // Short-circuit: no tasks → return a zero-state payload immediately,
-        // never let Gemini invent fake productivity numbers from thin air.
-        if (tasks.length === 0) {
-            const noDataPayload = {
-                insight: "No tasks logged yet. Add your first task to unlock personalized AI insights.",
-                productivity_score: 0,
-                mood_trend: "Stable",
-                briefing: "Start your journey — add your first task to get a personalized AI game plan.",
-                focus_priority: "Light Tasks",
-                success_probability: 0,
-                recommended_difficulty: "Easy",
-                quote: "The journey of a thousand miles begins with a single step.",
-                author: "Lao Tzu"
-            };
-            aiCache.set(userId, { data: noDataPayload, timestamp: Date.now() });
-            return noDataPayload;
-        }
-
-        const completed = tasks.filter(t => t.is_completed).length;
-        const completionRate = Math.round((completed / tasks.length) * 100);
-        const hardCount = tasks.filter(t => t.difficulty === 'hard').length;
-        const hardRatio = Math.round((hardCount / tasks.length) * 100);
-        const pending = tasks.length - completed;
-        const context = `Snapshot: ${completed}/${tasks.length} recent tasks completed (${completionRate}% completion rate), ${pending} pending, ${hardRatio}% of tasks are 'hard'.\n`
-            + `Recent task history:\n` + tasks.map(t =>
-                `- "${t.title}" (Difficulty: ${t.difficulty}, Status: ${t.is_completed ? 'Completed' : 'Pending'})`
-            ).join('\n');
+            const scoreToUse = todayRate > 0 ? todayRate : overallRate;
 
         const prompt = `
-        You are 'AscendAI', a hyper-intelligent productivity coach integrated into a web dashboard.
-        Analyze the user's REAL task data below and generate a consolidated JSON payload. Be accurate — do NOT invent numbers.
-        Do NOT wrap the response in markdown code blocks. Output pure JSON ONLY.
+        You are AscendAI — a hyper-intelligent, real-time productivity companion in a personal dashboard.
+        You have access to the user's LIVE task data right now. React to it like a sharp coach who just looked over their shoulder.
+        Do NOT wrap the response in markdown. Output pure JSON ONLY.
 
-        CRITICAL RULES:
-        - productivity_score MUST reflect the actual completion rate (${completionRate}%). Do not inflate it.
-        - All fields must be grounded in the actual task data provided.
-        - If completion rate is 0%, set productivity_score to 0 and mood_trend to "Declining".
+        STRICT RULES:
+        - Read TODAY's section first. That is what's happening RIGHT NOW.
+        - productivity_score must be ${scoreToUse} or very close (it equals today's completion rate).
+        - The "insight" must name specific tasks from today's data — not generic advice.
+        - The "briefing" must tell them EXACTLY which pending task to attack next and why (reference the task name).
+        - If all today's tasks are done, celebrate loudly and recommend increasing difficulty tomorrow.
+        - If nothing is done today, be honest and push them to start with the easiest pending task.
+        - mood_trend must be "Improving" only if today's rate > 60%, "Declining" if < 30%, else "Stable".
 
-        Required JSON Schema:
+        JSON schema:
         {
-          "insight": "1-2 sentence highly personalized insight explicitly referencing their actual completion rate and task names.",
-          "productivity_score": (integer 0-100, MUST match the actual ${completionRate}% completion rate closely),
+          "insight": "1-2 sentences referencing actual task names and today's ${scoreToUse}% rate.",
+          "productivity_score": ${scoreToUse},
           "mood_trend": "Improving/Stable/Declining",
-          "briefing": "1 sentence advising which specific task to tackle next based on difficulty balance.",
+          "briefing": "1 sentence naming the specific next task the user should start RIGHT NOW.",
           "focus_priority": "Deep Work/Light Tasks/Recovery",
-          "success_probability": (float 0.0-0.99, based on actual completion rate),
+          "success_probability": (float 0.0-0.99),
           "recommended_difficulty": "Easy/Medium/Hard",
-          "quote": "A powerful motivational quote relevant to their current workload.",
-          "author": "Name of quote author"
+          "quote": "A quote that matches the user's current energy level today.",
+          "author": "Quote author name"
         }
 
-        USER TASKS CONTEXT:
+        LIVE DATA:
         ${context}
         `;
 
@@ -175,12 +227,15 @@ async function getCachedOrFetchGemini(userId) {
         }
     })();
 
-    // Store the raw PENDING promise in the cache immediately, so all 4 parallel dashboard 
-    // widgets wait gracefully instead of flooding Google API 4 times instantly!
     aiCache.set(userId, { promise: fetchPromise, timestamp: now });
-    
     return await fetchPromise;
 }
+
+// Force-busts the cache so the next widget request pulls fresh live data from Gemini
+export const clearAiCache = (req, res) => {
+    aiCache.delete(req.user.id);
+    res.json({ cleared: true });
+};
 
 // Expressiveness presets for the "Reality Check". The user picks how savage the
 // AI gets: normal (clean coach), hard (tough-love, no profanity), brutal (uncensored).
@@ -256,7 +311,8 @@ export const getVerdict = async (req, res) => {
 
 export const getInsights = async (req, res) => {
     try {
-        const aiData = await getCachedOrFetchGemini(req.user.id);
+        const force = req.query.refresh === 'true';
+        const aiData = await getCachedOrFetchGemini(req.user.id, force);
         res.json({
             insight: aiData.insight,
             productivity_score: aiData.productivity_score,

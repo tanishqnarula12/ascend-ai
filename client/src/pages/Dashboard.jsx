@@ -5,7 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import Heatmap from '../components/Heatmap';
 import BadgeModal from '../components/BadgeModal';
 import { motion } from 'framer-motion';
-import { AlertCircle, TrendingUp, CheckCircle, Award, BarChart3, Flame, Square, ListChecks, Plus, Circle, CheckCircle2, Trash2, ArrowRight, Target, Brain, Sparkles, Activity } from 'lucide-react';
+import { AlertCircle, TrendingUp, CheckCircle, Award, BarChart3, Flame, Square, ListChecks, Plus, Circle, CheckCircle2, Trash2, ArrowRight, Target, Brain, Sparkles, Activity, RefreshCw } from 'lucide-react';
 
 const TODO_KEY = 'ascendai_quick_todos';
 const TODAY = new Date().toISOString().split('T')[0];
@@ -50,10 +50,45 @@ const Dashboard = () => {
     const [weeklyHabits, setWeeklyHabits] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [lastSynced, setLastSynced] = useState(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Quick To-Do widget state — synced to localStorage (same key as /todo page)
     const [todos, setTodos] = useState(loadTodos);
     const [todoInput, setTodoInput] = useState('');
+
+    // Re-fetches only the AI-driven widgets with a forced cache bust.
+    // Called manually (refresh button) and automatically on tab re-focus after 3+ min away.
+    const refreshAiData = async () => {
+        if (isRefreshing) return;
+        setIsRefreshing(true);
+        try {
+            await api.delete('/ai/cache');
+            const [tasksRes, aiRes, briefingRes, motivationRes] = await Promise.all([
+                api.get('/tasks?today=true').catch(() => null),
+                api.get('/ai/insights?refresh=true').catch(() => null),
+                api.get('/ai/briefing?refresh=true').catch(() => null),
+                api.get('/ai/motivation?refresh=true').catch(() => null),
+            ]);
+            if (tasksRes) {
+                const tasks = tasksRes.data || [];
+                const completed = tasks.filter(t => t.is_completed).length;
+                setStats(prev => ({
+                    ...prev,
+                    completedTasks: completed,
+                    pendingTasks: tasks.length - completed,
+                }));
+            }
+            if (aiRes) setInsight(aiRes.data);
+            if (briefingRes) setBriefing(briefingRes.data);
+            if (motivationRes) setMotivation(motivationRes.data);
+            setLastSynced(Date.now());
+        } catch (e) {
+            console.warn('[DASHBOARD] Refresh failed:', e);
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
 
     const saveTodos = (next) => {
         setTodos(next);
@@ -136,6 +171,7 @@ const Dashboard = () => {
                 setBriefing(briefingRes?.data);
                 setMotivation(motivationRes?.data);
                 setWeeklyHabits(habitsRes?.data || []);
+                setLastSynced(Date.now());
                 console.log("[DASHBOARD] Data loaded successfully");
 
             } catch (error) {
@@ -148,6 +184,19 @@ const Dashboard = () => {
 
         fetchDashboardData();
     }, []);
+
+    // Auto-refresh: every 3 minutes while the tab is open, and immediately when
+    // the user switches back to this tab after being away for 3+ minutes.
+    useEffect(() => {
+        const interval = setInterval(() => { refreshAiData(); }, 3 * 60 * 1000);
+        const onVisible = () => {
+            if (document.visibilityState === 'visible' && lastSynced && Date.now() - lastSynced > 3 * 60 * 1000) {
+                refreshAiData();
+            }
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };
+    }, [lastSynced, isRefreshing]);
 
     if (loading) return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-5">
@@ -311,7 +360,6 @@ const Dashboard = () => {
 
                 {/* Today's Game Plan — redesigned */}
                 <div className="relative bg-card border border-border rounded-2xl p-6 overflow-hidden group hover:border-primary/40 transition-all duration-300">
-                    {/* Top accent bar */}
                     <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-indigo-500 to-purple-500 rounded-t-2xl" />
                     <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-primary/5 rounded-full blur-xl group-hover:bg-primary/10 transition-all" />
 
@@ -319,8 +367,18 @@ const Dashboard = () => {
                         <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                             <Target size={18} className="text-primary" />
                         </div>
-                        <div>
-                            <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-2">Today's Game Plan</p>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Today's Game Plan</p>
+                                <button
+                                    onClick={refreshAiData}
+                                    disabled={isRefreshing}
+                                    title="Refresh AI analysis"
+                                    className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
+                                >
+                                    <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
+                                </button>
+                            </div>
                             <p className="text-sm font-semibold text-foreground leading-relaxed">
                                 {briefing?.briefing || "Add tasks to generate your personalized AI game plan."}
                             </p>
@@ -578,7 +636,7 @@ const Dashboard = () => {
                             {insight?.insight || (hasData ? "Analyzing your patterns..." : "Add tasks to unlock personalized AI insights.")}
                         </p>
 
-                        <div className="relative z-10 flex items-center justify-between">
+                        <div className="relative z-10 flex items-center justify-between gap-2">
                             <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
                                 insight?.mood_trend === 'Improving' ? 'bg-green-500/10 text-green-500' :
                                 insight?.mood_trend === 'Declining' ? 'bg-red-500/10 text-red-500' :
@@ -586,9 +644,25 @@ const Dashboard = () => {
                             }`}>
                                 {insight?.mood_trend || 'Stable'}
                             </span>
-                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                                <Activity size={11} /> AI Synced
-                            </span>
+                            <div className="flex items-center gap-2">
+                                {lastSynced && (
+                                    <span className="text-[10px] text-muted-foreground">
+                                        {Math.floor((Date.now() - lastSynced) / 60000) < 1
+                                            ? 'just now'
+                                            : `${Math.floor((Date.now() - lastSynced) / 60000)}m ago`}
+                                    </span>
+                                )}
+                                <button
+                                    onClick={refreshAiData}
+                                    disabled={isRefreshing}
+                                    title="Refresh AI analysis with latest data"
+                                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-indigo-500 transition-colors disabled:opacity-40"
+                                >
+                                    <RefreshCw size={11} className={isRefreshing ? 'animate-spin' : ''} />
+                                    <Activity size={11} />
+                                    {isRefreshing ? 'Syncing…' : 'AI Synced'}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
