@@ -163,11 +163,21 @@ export const createGoal = async (req, res) => {
 
 export const updateGoal = async (req, res) => {
     const { id } = req.params;
-    const { title, description, status, progress } = req.body;
+    const { title, description, status, progress, category, goal_type, deadline } = req.body;
     try {
+        // deadline can legitimately be cleared to empty string from the form — normalize to null
+        const normalizedDeadline = deadline === '' ? null : deadline;
         const updatedGoal = await query(
-            'UPDATE goals SET title = COALESCE($1, title), description = COALESCE($2, description), status = COALESCE($3, status), progress = COALESCE($4, progress) WHERE id = $5 AND user_id = $6 RETURNING *',
-            [title, description, status, progress, id, req.user.id]
+            `UPDATE goals SET
+                title = COALESCE($1, title),
+                description = COALESCE($2, description),
+                status = COALESCE($3, status),
+                progress = COALESCE($4, progress),
+                category = COALESCE($5, category),
+                goal_type = COALESCE($6, goal_type),
+                deadline = COALESCE($7, deadline)
+             WHERE id = $8 AND user_id = $9 RETURNING *`,
+            [title, description, status, progress, category, goal_type, normalizedDeadline, id, req.user.id]
         );
         if (updatedGoal.rows.length === 0) {
             return res.status(404).json({ message: 'Goal not found' });

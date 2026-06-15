@@ -178,7 +178,28 @@ export const getBurnoutRisk = async (userId) => {
         );
         const activeDays = parseInt(activeDaysRes.rows[0]?.days) || 0;
 
-        return computeBurnout(tasksRes.rows, activeDays);
+        // Fold today's quick to-dos into the workload — but ONLY if the user actually
+        // has some. If there are no to-dos, burnout stays purely task-driven (as before).
+        // Each to-do is treated as a medium-difficulty unit of committed work for today.
+        let rows = tasksRes.rows;
+        try {
+            const todosRes = await query(
+                `SELECT done FROM quick_todos WHERE user_id = $1 AND date = CURRENT_DATE`,
+                [userId]
+            );
+            if (todosRes.rows.length > 0) {
+                const nowIso = new Date().toISOString();
+                const todoRows = todosRes.rows.map(t => ({
+                    difficulty: 'medium',
+                    is_completed: t.done,
+                    created_at: nowIso,
+                    completed_at: t.done ? nowIso : null,
+                }));
+                rows = [...rows, ...todoRows];
+            }
+        } catch { /* table may not exist yet — ignore, fall back to tasks only */ }
+
+        return computeBurnout(rows, activeDays);
     } catch (error) {
         console.error("Burnout Service Error:", error);
         return { risk_level: 'LOW', score: 0, factors: {}, primary_driver: null, recommendation: 'Keep a steady, sustainable pace.' };

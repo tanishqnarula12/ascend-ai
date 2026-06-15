@@ -7,18 +7,6 @@ import BadgeModal from '../components/BadgeModal';
 import { motion } from 'framer-motion';
 import { AlertCircle, TrendingUp, CheckCircle, Award, BarChart3, Flame, Square, ListChecks, Plus, Circle, CheckCircle2, Trash2, ArrowRight, Target, Brain, Sparkles, Activity, RefreshCw } from 'lucide-react';
 
-const TODO_KEY = 'ascendai_quick_todos';
-const TODAY = new Date().toISOString().split('T')[0];
-
-// Only keep todos created today — they expire at midnight automatically
-const loadTodos = () => {
-    try {
-        const raw = localStorage.getItem(TODO_KEY);
-        const parsed = raw ? JSON.parse(raw) : [];
-        return Array.isArray(parsed) ? parsed.filter(t => t.date === TODAY) : [];
-    } catch { return []; }
-};
-
 const timeGreeting = () => {
     const h = new Date().getHours();
     if (h < 12) return 'Good morning';
@@ -53,8 +41,8 @@ const Dashboard = () => {
     const [lastSynced, setLastSynced] = useState(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    // Quick To-Do widget state — synced to localStorage (same key as /todo page)
-    const [todos, setTodos] = useState(loadTodos);
+    // Quick To-Do widget state — backed by DB for cross-device sync
+    const [todos, setTodos] = useState([]);
     const [todoInput, setTodoInput] = useState('');
 
     // Re-fetches only the AI-driven widgets with a forced cache bust.
@@ -90,25 +78,35 @@ const Dashboard = () => {
         }
     };
 
-    const saveTodos = (next) => {
-        setTodos(next);
-        localStorage.setItem(TODO_KEY, JSON.stringify(next));
-    };
-    const addTodo = (e) => {
+    const addTodo = async (e) => {
         e.preventDefault();
         const val = todoInput.trim();
         if (!val) return;
-        saveTodos([{ id: Date.now(), text: val, done: false, date: TODAY }, ...todos]);
         setTodoInput('');
+        try {
+            const res = await api.post('/quick-todos', { text: val });
+            setTodos(prev => [res.data, ...prev]);
+        } catch { setTodoInput(val); }
     };
-    const toggleTodo = (id) => saveTodos(todos.map(t => t.id === id ? { ...t, done: !t.done } : t));
-    const removeTodo = (id) => saveTodos(todos.filter(t => t.id !== id));
+    const toggleTodo = async (id) => {
+        setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+        try {
+            const res = await api.put(`/quick-todos/${id}/toggle`);
+            setTodos(prev => prev.map(t => t.id === id ? res.data : t));
+        } catch {
+            setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+        }
+    };
+    const removeTodo = async (id) => {
+        setTodos(prev => prev.filter(t => t.id !== id));
+        api.delete(`/quick-todos/${id}`).catch(() => {});
+    };
 
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
                 console.log("[DASHBOARD] Fetching data from all components...");
-                const [tasksRes, aiRes, analyticsRes, briefingRes, advAnalyticsRes, focusRes, motivationRes, habitsRes] = await Promise.all([
+                const [tasksRes, aiRes, analyticsRes, briefingRes, advAnalyticsRes, focusRes, motivationRes, habitsRes, todosRes] = await Promise.all([
                     api.get('/tasks?today=true').then(r => { console.log("Tasks loaded"); return r; }).catch(e => { console.warn("Tasks failed", e); return { data: [] }; }),
                     api.get('/ai/insights').then(r => { console.log("Insights loaded"); return r; }).catch(e => { console.warn("Insights failed", e); return { data: { insight: "AI Service unavailable", productivity_score: 0 } }; }),
                     api.get('/goals/analytics').then(r => { console.log("Analytics loaded"); return r; }).catch(e => { console.warn("Analytics failed", e); return { data: { graphData: [], streak: 0 } }; }),
@@ -116,7 +114,8 @@ const Dashboard = () => {
                     api.get('/ai/advanced-analytics').then(r => { console.log("Adv Analytics loaded"); return r; }).catch(e => { console.warn("Adv Analytics failed", e); return { data: { consistency: { score: 0, trend: 'stable' }, burnout: { risk_level: 'LOW' }, heatmap: [] } }; }),
                     api.get('/ai/focus/stats').then(r => { console.log("Focus stats loaded"); return r; }).catch(e => { console.warn("Focus failed", e); return { data: { focus_score: 0, total_hours: 0 } }; }),
                     api.get('/ai/motivation').then(r => { console.log("Motivation loaded"); return r; }).catch(e => { console.warn("Motivation failed", e); return { data: { quote: "Your only limit is your mind.", author: "AscendAI" } }; }),
-                    api.get('/tasks/habits/weekly').then(r => { console.log("Habits loaded"); return r; }).catch(e => { console.warn("Habits failed", e); return { data: [] }; })
+                    api.get('/tasks/habits/weekly').then(r => { console.log("Habits loaded"); return r; }).catch(e => { console.warn("Habits failed", e); return { data: [] }; }),
+                    api.get('/quick-todos').catch(() => ({ data: [] }))
                 ]);
 
                 const tasks = tasksRes?.data || [];
@@ -171,6 +170,7 @@ const Dashboard = () => {
                 setBriefing(briefingRes?.data);
                 setMotivation(motivationRes?.data);
                 setWeeklyHabits(habitsRes?.data || []);
+                setTodos(todosRes?.data || []);
                 setLastSynced(Date.now());
                 console.log("[DASHBOARD] Data loaded successfully");
 

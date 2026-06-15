@@ -61,7 +61,7 @@ async function fetchWithFallback(prompt) {
 async function buildContext(userId) {
     const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
 
-    const [todayRes, historyRes, streakRes] = await Promise.all([
+    const [todayRes, historyRes, streakRes, todosRes] = await Promise.all([
         query(`
             SELECT title, difficulty, is_completed
             FROM tasks
@@ -86,13 +86,28 @@ async function buildContext(userId) {
             )
             SELECT COUNT(*) as streak FROM Groups
             WHERE grp = (SELECT MIN(grp) FROM Groups WHERE days_ago IN (0,1))
-        `, [userId])
+        `, [userId]),
+        // Today's quick to-dos — resilient if the table doesn't exist yet
+        query(`
+            SELECT text, done FROM quick_todos
+            WHERE user_id = $1 AND date = CURRENT_DATE
+            ORDER BY done ASC, created_at DESC
+        `, [userId]).catch(() => ({ rows: [] }))
     ]);
 
     const todayTasks = todayRes.rows;
     const todayDone = todayTasks.filter(t => t.is_completed);
     const todayPending = todayTasks.filter(t => !t.is_completed);
-    const todayRate = todayTasks.length > 0 ? Math.round((todayDone.length / todayTasks.length) * 100) : 0;
+
+    const todos = todosRes.rows;
+    const todosDone = todos.filter(t => t.done);
+    const todosPending = todos.filter(t => !t.done);
+
+    // "Today's progress" blends gamified tasks AND quick to-dos so the score is
+    // accurate whether the user lives in Tasks, the To-Do list, or both.
+    const todayTotalItems = todayTasks.length + todos.length;
+    const todayDoneItems = todayDone.length + todosDone.length;
+    const todayRate = todayTotalItems > 0 ? Math.round((todayDoneItems / todayTotalItems) * 100) : 0;
     const streak = parseInt(streakRes.rows[0]?.streak) || 0;
 
     const allForScore = [...todayTasks, ...historyRes.rows];
@@ -101,15 +116,23 @@ async function buildContext(userId) {
 
     let ctx = '';
 
-    if (todayTasks.length === 0 && historyRes.rows.length === 0) return { context: null, todayRate: 0, overallRate: 0, streak };
+    if (todayTotalItems === 0 && historyRes.rows.length === 0) return { context: null, todayRate: 0, overallRate: 0, streak };
 
     ctx += `=== TODAY (${todayStr}) ===\n`;
-    if (todayTasks.length === 0) {
-        ctx += `No tasks added yet today.\n`;
+    if (todayTasks.length === 0 && todos.length === 0) {
+        ctx += `No tasks or to-dos added yet today.\n`;
     } else {
-        ctx += `Progress: ${todayDone.length}/${todayTasks.length} tasks completed today (${todayRate}%)\n`;
-        if (todayDone.length > 0) ctx += `✅ Done: ${todayDone.map(t => `"${t.title}" [${t.difficulty}]`).join(', ')}\n`;
-        if (todayPending.length > 0) ctx += `⏳ Still pending: ${todayPending.map(t => `"${t.title}" [${t.difficulty}]`).join(', ')}\n`;
+        ctx += `Overall today: ${todayDoneItems}/${todayTotalItems} items done (${todayRate}%)\n`;
+        if (todayTasks.length > 0) {
+            ctx += `\nGamified Tasks (${todayDone.length}/${todayTasks.length} done):\n`;
+            if (todayDone.length > 0) ctx += `  ✅ Done: ${todayDone.map(t => `"${t.title}" [${t.difficulty}]`).join(', ')}\n`;
+            if (todayPending.length > 0) ctx += `  ⏳ Pending: ${todayPending.map(t => `"${t.title}" [${t.difficulty}]`).join(', ')}\n`;
+        }
+        if (todos.length > 0) {
+            ctx += `\nQuick To-Do list (${todosDone.length}/${todos.length} done):\n`;
+            if (todosDone.length > 0) ctx += `  ✅ Done: ${todosDone.map(t => `"${t.text}"`).join(', ')}\n`;
+            if (todosPending.length > 0) ctx += `  ⏳ Pending: ${todosPending.map(t => `"${t.text}"`).join(', ')}\n`;
+        }
     }
     ctx += `Current streak: ${streak} day${streak !== 1 ? 's' : ''}\n`;
 
@@ -168,19 +191,20 @@ async function getCachedOrFetchGemini(userId, forceRefresh = false) {
 
         STRICT RULES:
         - Read TODAY's section first. That is what's happening RIGHT NOW.
-        - productivity_score must be ${scoreToUse} or very close (it equals today's completion rate).
-        - The "insight" must name specific tasks from today's data — not generic advice.
-        - The "briefing" must tell them EXACTLY which pending task to attack next and why (reference the task name).
-        - If all today's tasks are done, celebrate loudly and recommend increasing difficulty tomorrow.
-        - If nothing is done today, be honest and push them to start with the easiest pending task.
+        - TODAY includes BOTH "Gamified Tasks" and the "Quick To-Do list" — treat every pending item (from either list) as fair game to call out.
+        - productivity_score must be ${scoreToUse} or very close (it equals today's combined completion rate across tasks AND to-dos).
+        - The "insight" must name a specific task or to-do from today's data — not generic advice.
+        - The "briefing" must tell them EXACTLY which pending item (task or to-do) to attack next and why (reference its name).
+        - If everything today (tasks and to-dos) is done, celebrate loudly and recommend increasing difficulty tomorrow.
+        - If nothing is done today, be honest and push them to start with the easiest pending item.
         - mood_trend must be "Improving" only if today's rate > 60%, "Declining" if < 30%, else "Stable".
 
         JSON schema:
         {
-          "insight": "1-2 sentences referencing actual task names and today's ${scoreToUse}% rate.",
+          "insight": "1-2 sentences referencing an actual task or to-do name and today's ${scoreToUse}% rate.",
           "productivity_score": ${scoreToUse},
           "mood_trend": "Improving/Stable/Declining",
-          "briefing": "1 sentence naming the specific next task the user should start RIGHT NOW.",
+          "briefing": "1 sentence naming the specific next task or to-do the user should start RIGHT NOW.",
           "focus_priority": "Deep Work/Light Tasks/Recovery",
           "success_probability": (float 0.0-0.99),
           "recommended_difficulty": "Easy/Medium/Hard",

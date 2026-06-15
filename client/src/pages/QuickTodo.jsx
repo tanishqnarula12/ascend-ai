@@ -1,22 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, ListChecks, CheckCircle2, Circle, Eraser } from 'lucide-react';
-
-// Lightweight daily checklist — lives in localStorage, resets each midnight.
-// Separate from gamified Daily Tasks so it doesn't touch XP/streak data.
-const STORAGE_KEY = 'ascendai_quick_todos';
-const TODAY = new Date().toISOString().split('T')[0];
-
-const loadTodos = () => {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        const parsed = raw ? JSON.parse(raw) : [];
-        // Only keep todos created today — anything older is auto-expired
-        return Array.isArray(parsed) ? parsed.filter(t => t.date === TODAY) : [];
-    } catch {
-        return [];
-    }
-};
+import { Plus, Trash2, ListChecks, CheckCircle2, Circle, Eraser, Loader2 } from 'lucide-react';
+import api from '../services/api';
 
 const FILTERS = [
     { id: 'all', label: 'All' },
@@ -25,28 +10,57 @@ const FILTERS = [
 ];
 
 const QuickTodo = () => {
-    const [todos, setTodos] = useState(loadTodos);
+    const [todos, setTodos] = useState([]);
     const [text, setText] = useState('');
     const [filter, setFilter] = useState('all');
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-    }, [todos]);
+        api.get('/quick-todos')
+            .then(r => setTodos(r.data))
+            .catch(() => setTodos([]))
+            .finally(() => setLoading(false));
+    }, []);
 
-    const addTodo = (e) => {
+    const addTodo = async (e) => {
         e.preventDefault();
         const value = text.trim();
         if (!value) return;
-        setTodos(prev => [{ id: Date.now(), text: value, done: false, date: TODAY }, ...prev]);
         setText('');
+        try {
+            const res = await api.post('/quick-todos', { text: value });
+            setTodos(prev => [res.data, ...prev]);
+        } catch {
+            setText(value); // restore on failure
+        }
     };
 
-    const toggle = (id) =>
-        setTodos(prev => prev.map(t => (t.id === id ? { ...t, done: !t.done } : t)));
+    const toggle = async (id) => {
+        // Optimistic flip, then confirm with server
+        setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+        try {
+            const res = await api.put(`/quick-todos/${id}/toggle`);
+            setTodos(prev => prev.map(t => t.id === id ? res.data : t));
+        } catch {
+            setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+        }
+    };
 
-    const remove = (id) => setTodos(prev => prev.filter(t => t.id !== id));
+    const remove = async (id) => {
+        setTodos(prev => prev.filter(t => t.id !== id)); // optimistic remove
+        try {
+            await api.delete(`/quick-todos/${id}`);
+        } catch {
+            // silently ignore — todo will reappear on next page load
+        }
+    };
 
-    const clearCompleted = () => setTodos(prev => prev.filter(t => !t.done));
+    const clearCompleted = async () => {
+        setTodos(prev => prev.filter(t => !t.done));
+        try {
+            await api.delete('/quick-todos/completed');
+        } catch { /* ignore */ }
+    };
 
     const visible = todos.filter(t =>
         filter === 'active' ? !t.done : filter === 'done' ? t.done : true
@@ -63,7 +77,7 @@ const QuickTodo = () => {
                     <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
                         <ListChecks className="text-primary" /> Quick To-Do
                     </h1>
-                    <p className="text-muted-foreground mt-1">A simple checklist for everything else on your mind.</p>
+                    <p className="text-muted-foreground mt-1">A simple daily checklist — syncs across all your devices.</p>
                 </div>
                 <div className="text-right">
                     <div className="text-2xl font-bold text-primary">{remaining}</div>
@@ -76,7 +90,7 @@ const QuickTodo = () => {
                 <div
                     className="h-full bg-primary transition-all duration-500 ease-out"
                     style={{ width: `${progress}%` }}
-                ></div>
+                />
             </div>
 
             {/* Add Form */}
@@ -127,53 +141,60 @@ const QuickTodo = () => {
 
             {/* List */}
             <div className="space-y-3">
-                <AnimatePresence mode="popLayout">
-                    {visible.length === 0 && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0 }}
-                            className="text-center py-12 text-muted-foreground"
-                        >
-                            <ListChecks size={48} className="mx-auto mb-4 opacity-20" />
-                            <p>{todos.length === 0 ? 'Your list is empty. Add something above!' : 'Nothing here for this filter.'}</p>
-                        </motion.div>
-                    )}
-
-                    {visible.map((todo) => (
-                        <motion.div
-                            layout
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            key={todo.id}
-                            className={`group flex items-center justify-between p-4 rounded-xl border transition-all duration-200 ${todo.done
-                                ? 'bg-secondary/30 border-transparent opacity-60'
-                                : 'bg-card border-border hover:border-primary/50 hover:shadow-sm'
-                                }`}
-                        >
-                            <div className="flex items-center gap-4 flex-1 min-w-0">
-                                <button
-                                    onClick={() => toggle(todo.id)}
-                                    className={`flex-shrink-0 transition-colors ${todo.done ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
-                                    aria-label={todo.done ? 'Mark as not done' : 'Mark as done'}
-                                >
-                                    {todo.done ? <CheckCircle2 size={24} /> : <Circle size={24} />}
-                                </button>
-                                <p className={`font-medium truncate ${todo.done ? 'line-through text-muted-foreground' : ''}`}>
-                                    {todo.text}
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => remove(todo.id)}
-                                className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity p-2"
-                                aria-label="Delete to-do"
+                {loading ? (
+                    <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
+                        <Loader2 size={20} className="animate-spin" />
+                        <span className="text-sm">Loading your to-dos…</span>
+                    </div>
+                ) : (
+                    <AnimatePresence mode="popLayout">
+                        {visible.length === 0 && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0 }}
+                                className="text-center py-12 text-muted-foreground"
                             >
-                                <Trash2 size={18} />
-                            </button>
-                        </motion.div>
-                    ))}
-                </AnimatePresence>
+                                <ListChecks size={48} className="mx-auto mb-4 opacity-20" />
+                                <p>{todos.length === 0 ? 'Your list is empty. Add something above!' : 'Nothing here for this filter.'}</p>
+                            </motion.div>
+                        )}
+
+                        {visible.map((todo) => (
+                            <motion.div
+                                layout
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                key={todo.id}
+                                className={`group flex items-center justify-between p-4 rounded-xl border transition-all duration-200 ${todo.done
+                                    ? 'bg-secondary/30 border-transparent opacity-60'
+                                    : 'bg-card border-border hover:border-primary/50 hover:shadow-sm'
+                                    }`}
+                            >
+                                <div className="flex items-center gap-4 flex-1 min-w-0">
+                                    <button
+                                        onClick={() => toggle(todo.id)}
+                                        className={`flex-shrink-0 transition-colors ${todo.done ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
+                                        aria-label={todo.done ? 'Mark as not done' : 'Mark as done'}
+                                    >
+                                        {todo.done ? <CheckCircle2 size={24} /> : <Circle size={24} />}
+                                    </button>
+                                    <p className={`font-medium truncate ${todo.done ? 'line-through text-muted-foreground' : ''}`}>
+                                        {todo.text}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => remove(todo.id)}
+                                    className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity p-2"
+                                    aria-label="Delete to-do"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                )}
             </div>
         </div>
     );
