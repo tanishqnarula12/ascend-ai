@@ -329,29 +329,88 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="lg:col-span-3">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <StatCard
-                            title="Daily Streak"
-                            value={`${stats.streak} Days`}
-                            icon={TrendingUp}
-                            trend="Consistency"
-                            color="text-green-500"
-                        />
-                        <div onClick={() => setIsBadgeModalOpen(true)} className="cursor-pointer group">
-                            <StatCard
-                                title="Badges"
-                                value={stats.achievements || 0}
-                                icon={Award}
-                                trend="View Collection"
-                                color="text-purple-500"
-                            />
+
+                        {/* Consistency Score — replaces Daily Streak (streak lives in Momentum) */}
+                        <div className="relative bg-card border border-border rounded-2xl p-6 overflow-hidden group hover:border-indigo-500/40 transition-all duration-300">
+                            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-400 rounded-t-2xl" />
+                            <div className="absolute -right-5 -bottom-5 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl group-hover:bg-indigo-500/10 transition-all" />
+                            <div className="relative z-10">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
+                                        <TrendingUp size={18} className="text-indigo-500" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-500">Consistency</p>
+                                        <p className="text-2xl font-bold leading-none mt-1">
+                                            {stats.consistencyScore ?? 0}
+                                            <span className="text-sm font-medium text-muted-foreground ml-1">/ 100</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                    {(stats.consistencyScore ?? 0) >= 70
+                                        ? "Rock solid. You're building an unbreakable habit loop."
+                                        : (stats.consistencyScore ?? 0) >= 40
+                                            ? "Good momentum. Close more tasks daily to push this higher."
+                                            : "Show up consistently — even small wins compound fast."}
+                                </p>
+                            </div>
                         </div>
-                        <StatCard
-                            title="Total Progress"
-                            value={hasData ? `${Math.round((stats.completedTasks / (stats.completedTasks + stats.pendingTasks)) * 100)}%` : "0%"}
-                            icon={CheckCircle}
-                            trend="Completed"
-                            color="text-blue-500"
-                        />
+
+                        {/* Badges */}
+                        <div onClick={() => setIsBadgeModalOpen(true)} className="relative bg-card border border-border rounded-2xl p-6 overflow-hidden group cursor-pointer hover:border-purple-500/40 transition-all duration-300">
+                            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 via-violet-500 to-pink-500 rounded-t-2xl" />
+                            <div className="absolute -right-5 -bottom-5 w-24 h-24 bg-purple-500/5 rounded-full blur-xl group-hover:bg-purple-500/10 transition-all" />
+                            <div className="relative z-10">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-9 h-9 rounded-xl bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+                                        <Award size={18} className="text-purple-500" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] font-bold uppercase tracking-widest text-purple-500">Badges</p>
+                                        <p className="text-2xl font-bold leading-none mt-1">
+                                            {stats.achievements || 0}
+                                            <span className="text-sm font-medium text-muted-foreground ml-1.5">earned</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground leading-relaxed group-hover:text-purple-500/80 transition-colors">
+                                    Tap to view your collection →
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Today's Progress */}
+                        <div className="relative bg-card border border-border rounded-2xl p-6 overflow-hidden group hover:border-cyan-500/40 transition-all duration-300">
+                            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 rounded-t-2xl" />
+                            <div className="absolute -right-5 -bottom-5 w-24 h-24 bg-cyan-500/5 rounded-full blur-xl group-hover:bg-cyan-500/10 transition-all" />
+                            <div className="relative z-10">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-9 h-9 rounded-xl bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                                        <CheckCircle size={18} className="text-cyan-500" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] font-bold uppercase tracking-widest text-cyan-500">Today</p>
+                                        <p className="text-2xl font-bold leading-none mt-1">
+                                            {stats.completedTasks}
+                                            <span className="text-sm font-medium text-muted-foreground ml-1">
+                                                / {stats.completedTasks + stats.pendingTasks} done
+                                            </span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full transition-all duration-700"
+                                        style={{ width: `${hasData ? Math.round((stats.completedTasks / (stats.completedTasks + stats.pendingTasks)) * 100) : 0}%` }}
+                                    />
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-2">
+                                    {hasData ? `${Math.round((stats.completedTasks / (stats.completedTasks + stats.pendingTasks)) * 100)}% of today's tasks cleared` : "No tasks yet — add one to start."}
+                                </p>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -739,20 +798,5 @@ const BurnoutCard = ({ level, score = 0, recommendation }) => {
         </div>
     );
 };
-
-const StatCard = ({ title, value, icon: Icon, trend, color }) => (
-    <div className="bg-card p-6 rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex justify-between items-start mb-4">
-            <div className={`p-2 rounded-lg bg-opacity-10 ${color.replace('text-', 'bg-')}`}>
-                <Icon className={color} size={24} />
-            </div>
-            <span className="text-xs font-medium text-muted-foreground bg-secondary px-2 py-1 rounded-full">{trend}</span>
-        </div>
-        <div>
-            <h4 className="text-muted-foreground text-sm font-medium">{title}</h4>
-            <div className="text-2xl font-bold mt-1 text-foreground">{value}</div>
-        </div>
-    </div>
-);
 
 export default Dashboard;
