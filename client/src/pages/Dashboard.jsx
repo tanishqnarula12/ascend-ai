@@ -228,6 +228,13 @@ const Dashboard = () => {
     // Short weekday name (e.g. "Mon") to highlight today in the Momentum chain
     const todayShort = new Date().toLocaleDateString('en-US', { weekday: 'short' });
 
+    // graphData is bucketed Mon→Sun; rotate it so the chain reads chronologically
+    // and ENDS on today (the rightmost dot is always "today"). This matches the streak.
+    const todayIdx = graphData.findIndex(d => d.name === todayShort);
+    const momentumChain = todayIdx >= 0
+        ? [...graphData.slice(todayIdx + 1), ...graphData.slice(0, todayIdx + 1)]
+        : graphData;
+
     const weekDates = [];
     const now = new Date();
     // Normalize today for comparison
@@ -326,100 +333,13 @@ const Dashboard = () => {
                 </div>
             </motion.div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <div className="lg:col-span-3">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
 
-                        {/* Consistency Score — replaces Daily Streak (streak lives in Momentum) */}
-                        <div className="relative bg-card border border-border rounded-2xl p-6 overflow-hidden group hover:border-indigo-500/40 transition-all duration-300">
-                            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-400 rounded-t-2xl" />
-                            <div className="absolute -right-5 -bottom-5 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl group-hover:bg-indigo-500/10 transition-all" />
-                            <div className="relative z-10">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
-                                        <TrendingUp size={18} className="text-indigo-500" />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-500">Consistency</p>
-                                        <p className="text-2xl font-bold leading-none mt-1">
-                                            {stats.consistencyScore ?? 0}
-                                            <span className="text-sm font-medium text-muted-foreground ml-1">/ 100</span>
-                                        </p>
-                                    </div>
-                                </div>
-                                <p className="text-xs text-muted-foreground leading-relaxed">
-                                    {(stats.consistencyScore ?? 0) >= 70
-                                        ? "Rock solid. You're building an unbreakable habit loop."
-                                        : (stats.consistencyScore ?? 0) >= 40
-                                            ? "Good momentum. Close more tasks daily to push this higher."
-                                            : "Show up consistently — even small wins compound fast."}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Badges */}
-                        <div onClick={() => setIsBadgeModalOpen(true)} className="relative bg-card border border-border rounded-2xl p-6 overflow-hidden group cursor-pointer hover:border-purple-500/40 transition-all duration-300">
-                            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 via-violet-500 to-pink-500 rounded-t-2xl" />
-                            <div className="absolute -right-5 -bottom-5 w-24 h-24 bg-purple-500/5 rounded-full blur-xl group-hover:bg-purple-500/10 transition-all" />
-                            <div className="relative z-10">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-9 h-9 rounded-xl bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-                                        <Award size={18} className="text-purple-500" />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-[11px] font-bold uppercase tracking-widest text-purple-500">Badges</p>
-                                        <p className="text-2xl font-bold leading-none mt-1">
-                                            {stats.achievements || 0}
-                                            <span className="text-sm font-medium text-muted-foreground ml-1.5">earned</span>
-                                        </p>
-                                    </div>
-                                </div>
-                                <p className="text-xs text-muted-foreground leading-relaxed group-hover:text-purple-500/80 transition-colors">
-                                    Tap to view your collection →
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Today's Progress */}
-                        <div className="relative bg-card border border-border rounded-2xl p-6 overflow-hidden group hover:border-cyan-500/40 transition-all duration-300">
-                            <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 rounded-t-2xl" />
-                            <div className="absolute -right-5 -bottom-5 w-24 h-24 bg-cyan-500/5 rounded-full blur-xl group-hover:bg-cyan-500/10 transition-all" />
-                            <div className="relative z-10">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-9 h-9 rounded-xl bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                                        <CheckCircle size={18} className="text-cyan-500" />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-[11px] font-bold uppercase tracking-widest text-cyan-500">Today</p>
-                                        <p className="text-2xl font-bold leading-none mt-1">
-                                            {stats.completedTasks}
-                                            <span className="text-sm font-medium text-muted-foreground ml-1">
-                                                / {stats.completedTasks + stats.pendingTasks} done
-                                            </span>
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full transition-all duration-700"
-                                        style={{ width: `${hasData ? Math.round((stats.completedTasks / (stats.completedTasks + stats.pendingTasks)) * 100) : 0}%` }}
-                                    />
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-2">
-                                    {hasData ? `${Math.round((stats.completedTasks / (stats.completedTasks + stats.pendingTasks)) * 100)}% of today's tasks cleared` : "No tasks yet — add one to start."}
-                                </p>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-
-                {/* Momentum — "don't break the chain" streak visualizer */}
-                <div className="relative bg-card border border-border rounded-2xl p-6 overflow-hidden group hover:border-orange-500/40 transition-all duration-300">
+                {/* Momentum — "don't break the chain" streak visualizer (1st position) */}
+                <div className="relative h-full flex flex-col bg-card border border-border rounded-2xl p-6 overflow-hidden group hover:border-orange-500/40 transition-all duration-300">
                     <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 rounded-t-2xl" />
                     <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-orange-500/5 rounded-full blur-xl group-hover:bg-orange-500/10 transition-all" />
-
-                    <div className="relative z-10">
+                    <div className="relative z-10 flex flex-col h-full">
                         <div className="flex items-center gap-3 mb-5">
                             <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center flex-shrink-0">
                                 <Flame size={18} className="text-orange-500" />
@@ -433,11 +353,14 @@ const Dashboard = () => {
                             </div>
                         </div>
 
-                        {/* Weekly chain — a dot per day, filled when you showed up */}
+                        {/* 7-day chain — chronological, ends on today (rightmost) */}
                         <div className="flex items-center justify-between gap-1 mb-4">
-                            {(graphData.length ? graphData : []).map((d, i) => {
-                                const active = d.completion > 0;
+                            {momentumChain.map((d, i) => {
                                 const isToday = d.name === todayShort;
+                                // Today's dot uses the authoritative live count so it always
+                                // agrees with the "Today" card; past dots use historical data.
+                                const count = isToday ? stats.completedTasks : d.completion;
+                                const active = count > 0;
                                 return (
                                     <div key={i} className="flex flex-col items-center gap-1.5">
                                         <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-500
@@ -445,7 +368,7 @@ const Dashboard = () => {
                                                 ? 'bg-gradient-to-br from-orange-400 to-red-500 text-white shadow-sm shadow-orange-500/30'
                                                 : 'bg-secondary text-muted-foreground/40'}
                                             ${isToday ? 'ring-2 ring-orange-400 ring-offset-2 ring-offset-card' : ''}`}>
-                                            {active ? d.completion : ''}
+                                            {active ? count : ''}
                                         </div>
                                         <span className={`text-[9px] ${isToday ? 'text-orange-500 font-bold' : 'text-muted-foreground'}`}>{d.name?.[0]}</span>
                                     </div>
@@ -453,13 +376,97 @@ const Dashboard = () => {
                             })}
                         </div>
 
-                        <p className="text-xs text-muted-foreground leading-relaxed">
+                        <p className="text-xs text-muted-foreground leading-relaxed mt-auto">
                             {stats.streak > 0
                                 ? `🔥 You're on a ${stats.streak}-day roll — show up today to keep the chain alive.`
                                 : "Finish one task today to ignite your streak. Tomorrow it compounds."}
                         </p>
                     </div>
                 </div>
+
+                {/* Consistency Score */}
+                <div className="relative h-full flex flex-col bg-card border border-border rounded-2xl p-6 overflow-hidden group hover:border-indigo-500/40 transition-all duration-300">
+                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-400 rounded-t-2xl" />
+                    <div className="absolute -right-5 -bottom-5 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl group-hover:bg-indigo-500/10 transition-all" />
+                    <div className="relative z-10 flex flex-col h-full">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
+                                <TrendingUp size={18} className="text-indigo-500" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-500">Consistency</p>
+                                <p className="text-2xl font-bold leading-none mt-1">
+                                    {stats.consistencyScore ?? 0}
+                                    <span className="text-sm font-medium text-muted-foreground ml-1">/ 100</span>
+                                </p>
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed mt-auto">
+                            {(stats.consistencyScore ?? 0) >= 70
+                                ? "Rock solid. You're building an unbreakable habit loop."
+                                : (stats.consistencyScore ?? 0) >= 40
+                                    ? "Good momentum. Close more tasks daily to push this higher."
+                                    : "Show up consistently — even small wins compound fast."}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Badges */}
+                <div onClick={() => setIsBadgeModalOpen(true)} className="relative h-full flex flex-col bg-card border border-border rounded-2xl p-6 overflow-hidden group cursor-pointer hover:border-purple-500/40 transition-all duration-300">
+                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 via-violet-500 to-pink-500 rounded-t-2xl" />
+                    <div className="absolute -right-5 -bottom-5 w-24 h-24 bg-purple-500/5 rounded-full blur-xl group-hover:bg-purple-500/10 transition-all" />
+                    <div className="relative z-10 flex flex-col h-full">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-9 h-9 rounded-xl bg-purple-500/10 flex items-center justify-center flex-shrink-0">
+                                <Award size={18} className="text-purple-500" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-bold uppercase tracking-widest text-purple-500">Badges</p>
+                                <p className="text-2xl font-bold leading-none mt-1">
+                                    {stats.achievements || 0}
+                                    <span className="text-sm font-medium text-muted-foreground ml-1.5">earned</span>
+                                </p>
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed group-hover:text-purple-500/80 transition-colors mt-auto">
+                            Tap to view your collection →
+                        </p>
+                    </div>
+                </div>
+
+                {/* Today's Progress */}
+                <div className="relative h-full flex flex-col bg-card border border-border rounded-2xl p-6 overflow-hidden group hover:border-cyan-500/40 transition-all duration-300">
+                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 rounded-t-2xl" />
+                    <div className="absolute -right-5 -bottom-5 w-24 h-24 bg-cyan-500/5 rounded-full blur-xl group-hover:bg-cyan-500/10 transition-all" />
+                    <div className="relative z-10 flex flex-col h-full">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-9 h-9 rounded-xl bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                                <CheckCircle size={18} className="text-cyan-500" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-bold uppercase tracking-widest text-cyan-500">Today</p>
+                                <p className="text-2xl font-bold leading-none mt-1">
+                                    {stats.completedTasks}
+                                    <span className="text-sm font-medium text-muted-foreground ml-1">
+                                        / {stats.completedTasks + stats.pendingTasks} done
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-auto">
+                            <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full transition-all duration-700"
+                                    style={{ width: `${hasData ? Math.round((stats.completedTasks / (stats.completedTasks + stats.pendingTasks)) * 100) : 0}%` }}
+                                />
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                                {hasData ? `${Math.round((stats.completedTasks / (stats.completedTasks + stats.pendingTasks)) * 100)}% of today's tasks cleared` : "No tasks yet — add one to start."}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             {/* Quick To-Do Widget */}
