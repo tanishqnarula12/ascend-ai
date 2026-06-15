@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
-import { FileText, Download, Calendar, Target, AlertTriangle, Lightbulb, CheckCircle, AlertCircle, Square, TrendingUp, TrendingDown } from 'lucide-react';
+import { FileText, Download, Calendar, Target, AlertTriangle, Lightbulb, CheckCircle, AlertCircle, Square, TrendingUp, TrendingDown, Flame } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { computeRank } from '../lib/rank';
 import logo from '../assets/logo.png';
@@ -42,9 +42,12 @@ const CompletionRing = ({ rate }) => {
     );
 };
 
-const Tile = ({ label, value, unit }) => (
+const Tile = ({ label, value, unit, icon: Icon, color }) => (
     <div className="p-3 bg-secondary/50 rounded-xl border border-border/50">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">{label}</p>
+        <div className="flex items-center gap-1.5 mb-1">
+            {Icon && <Icon size={13} className={color} />}
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</p>
+        </div>
         <p className="text-xl font-bold text-foreground">{value}{unit && <span className="text-xs font-medium text-muted-foreground ml-1">{unit}</span>}</p>
     </div>
 );
@@ -167,8 +170,9 @@ const Reports = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.05 }}
                                 key={i}
-                                className={`bg-card rounded-2xl border border-border transition-colors hover:border-foreground/20 break-inside-avoid print:shadow-none print:border-slate-300 ${hidden ? 'print:hidden' : ''}`}
+                                className={`bg-card rounded-2xl border border-border overflow-hidden transition-colors hover:border-foreground/20 break-inside-avoid print:shadow-none print:border-slate-300 ${hidden ? 'print:hidden' : ''}`}
                             >
+                                <div className="h-1 bg-indigo-500" />
                                 <div className="p-6 md:p-8">
                                     {/* Top row: date + actions */}
                                     <div className="flex items-center justify-between mb-6">
@@ -198,15 +202,15 @@ const Reports = () => {
 
                                         <div className="flex-1 min-w-0">
                                             <h3 className="text-base font-bold mb-2 flex items-center gap-2">
-                                                <Lightbulb className="text-indigo-500" size={18} /> AI Summary
+                                                <Lightbulb className="text-amber-500" size={18} /> AI Summary
                                             </h3>
                                             <p className="text-muted-foreground leading-relaxed text-sm md:text-base">{report.ai_summary}</p>
 
                                             {/* Stat tiles */}
                                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-5">
-                                                <Tile label="Completion" value={`${report.completion_rate}%`} />
-                                                <Tile label="Consistency" value={`${consistency}/10`} />
-                                                <Tile label="Lifetime" value={report.total_tasks_completed || 0} unit="tasks" />
+                                                <Tile label="Completion" value={`${report.completion_rate}%`} icon={TrendingUp} color="text-indigo-500" />
+                                                <Tile label="Consistency" value={`${consistency}/10`} icon={Flame} color="text-orange-500" />
+                                                <Tile label="Lifetime" value={report.total_tasks_completed || 0} unit="tasks" icon={CheckCircle} color="text-emerald-500" />
                                             </div>
                                         </div>
                                     </div>
@@ -215,16 +219,16 @@ const Reports = () => {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                                         <div className="p-5 border border-border rounded-xl">
                                             <h4 className="font-bold flex items-center gap-2 mb-3 text-sm">
-                                                <Target className="text-muted-foreground" size={16} /> Goal Insights
+                                                <Target className="text-indigo-500" size={16} /> Goal Insights
                                             </h4>
                                             <div className="space-y-2.5">
                                                 <div className="flex justify-between items-center text-sm">
-                                                    <span className="text-muted-foreground flex items-center gap-1.5"><TrendingUp size={13} /> Strongest</span>
-                                                    <span className="font-semibold text-foreground truncate max-w-[55%]">{report.strongest_goal || 'None yet'}</span>
+                                                    <span className="text-muted-foreground flex items-center gap-1.5"><TrendingUp size={13} className="text-emerald-500" /> Strongest</span>
+                                                    <span className="font-semibold text-emerald-600 dark:text-emerald-400 truncate max-w-[55%]">{report.strongest_goal || 'None yet'}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-sm">
-                                                    <span className="text-muted-foreground flex items-center gap-1.5"><TrendingDown size={13} /> Needs work</span>
-                                                    <span className="font-semibold text-muted-foreground truncate max-w-[55%]">{report.weakest_goal || 'None yet'}</span>
+                                                    <span className="text-muted-foreground flex items-center gap-1.5"><TrendingDown size={13} className="text-rose-500" /> Needs work</span>
+                                                    <span className="font-semibold text-foreground truncate max-w-[55%]">{report.weakest_goal || 'None yet'}</span>
                                                 </div>
                                             </div>
                                         </div>

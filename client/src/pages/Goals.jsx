@@ -4,6 +4,14 @@ import { Plus, Target, Trash2, Edit2, Clock, CheckCircle, TrendingUp, Loader, Fl
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
 
+// One precise accent per category — used only for the chip + progress bar, not the whole card.
+const CAT = {
+    Personal: { chip: 'bg-blue-500/10 text-blue-600 dark:text-blue-400', bar: 'bg-blue-500' },
+    Career: { chip: 'bg-violet-500/10 text-violet-600 dark:text-violet-400', bar: 'bg-violet-500' },
+    Health: { chip: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500' },
+    Finance: { chip: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', bar: 'bg-amber-500' },
+};
+const cat = (c) => CAT[c] || { chip: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400', bar: 'bg-indigo-500' };
 
 const Goals = () => {
     const [goals, setGoals] = useState([]);
@@ -70,10 +78,10 @@ const Goals = () => {
     const avgProgress = goals.length > 0 ? Math.round(goals.reduce((s, g) => s + (g.progress || 0), 0) / goals.length) : 0;
 
     const SUMMARY = [
-        { label: 'Total Goals', value: goals.length, icon: Target },
-        { label: 'Completed', value: completed, icon: CheckCircle },
-        { label: 'In Progress', value: inProgress, icon: Loader },
-        { label: 'Avg Progress', value: `${avgProgress}%`, icon: TrendingUp },
+        { label: 'Total Goals', value: goals.length, icon: Target, chip: 'bg-indigo-500/10', color: 'text-indigo-500' },
+        { label: 'Completed', value: completed, icon: CheckCircle, chip: 'bg-emerald-500/10', color: 'text-emerald-500' },
+        { label: 'In Progress', value: inProgress, icon: Loader, chip: 'bg-amber-500/10', color: 'text-amber-500' },
+        { label: 'Avg Progress', value: `${avgProgress}%`, icon: TrendingUp, chip: 'bg-violet-500/10', color: 'text-violet-500' },
     ];
 
     return (
@@ -99,7 +107,9 @@ const Goals = () => {
                         <div key={s.label} className="bg-card border border-border rounded-2xl p-5 transition-colors hover:border-foreground/20">
                             <div className="flex items-center justify-between mb-3">
                                 <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{s.label}</p>
-                                <Icon size={15} className="text-muted-foreground" />
+                                <div className={`w-8 h-8 rounded-lg ${s.chip} flex items-center justify-center`}>
+                                    <Icon size={15} className={s.color} />
+                                </div>
                             </div>
                             <p className="text-2xl font-bold leading-none">{s.value}</p>
                         </div>
@@ -178,12 +188,13 @@ const Goals = () => {
 
 const GoalCard = ({ goal, onEdit, onDelete }) => {
     const done = goal.progress >= 100;
+    const c = cat(goal.category);
 
     return (
         <div className="h-full bg-card rounded-2xl border border-border p-6 transition-colors group hover:border-foreground/20">
             <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-secondary text-foreground uppercase tracking-wider">{goal.category}</span>
+                    <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${c.chip} uppercase tracking-wider`}>{goal.category}</span>
                     <span className="text-[10px] text-muted-foreground border border-border px-2 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
                         <Flag size={9} /> {goal.goal_type}
                     </span>
@@ -200,10 +211,10 @@ const GoalCard = ({ goal, onEdit, onDelete }) => {
             <div className="space-y-2">
                 <div className="flex justify-between text-sm font-medium">
                     <span className="text-muted-foreground">Progress</span>
-                    <span className={done ? 'text-green-500 font-bold' : ''}>{goal.progress}%</span>
+                    <span className={done ? 'text-emerald-500 font-bold' : ''}>{goal.progress}%</span>
                 </div>
                 <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all duration-700 ${done ? 'bg-green-500' : 'bg-indigo-500'}`} style={{ width: `${goal.progress}%` }} />
+                    <div className={`h-full rounded-full transition-all duration-700 ${done ? 'bg-emerald-500' : c.bar}`} style={{ width: `${goal.progress}%` }} />
                 </div>
             </div>
 

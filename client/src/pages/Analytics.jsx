@@ -47,10 +47,10 @@ const Analytics = () => {
     const activeGoals = goals.filter(g => g.status !== 'completed').length;
 
     const KPIS = [
-        { label: 'Day Streak', value: analytics?.streak || 0, icon: Flame },
-        { label: 'Tasks Done', value: analytics?.totalTasks || 0, icon: Zap },
-        { label: 'Goals Hit', value: completedGoals, icon: Trophy },
-        { label: 'Active Goals', value: activeGoals, icon: Target },
+        { label: 'Day Streak', value: analytics?.streak || 0, icon: Flame, chip: 'bg-orange-500/10', color: 'text-orange-500' },
+        { label: 'Tasks Done', value: analytics?.totalTasks || 0, icon: Zap, chip: 'bg-blue-500/10', color: 'text-blue-500' },
+        { label: 'Goals Hit', value: completedGoals, icon: Trophy, chip: 'bg-emerald-500/10', color: 'text-emerald-500' },
+        { label: 'Active Goals', value: activeGoals, icon: Target, chip: 'bg-violet-500/10', color: 'text-violet-500' },
     ];
 
     return (
@@ -68,7 +68,9 @@ const Analytics = () => {
                         <div key={k.label} className="bg-card border border-border rounded-2xl p-5 transition-colors hover:border-foreground/20">
                             <div className="flex items-center justify-between mb-3">
                                 <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{k.label}</p>
-                                <Icon size={15} className="text-muted-foreground" />
+                                <div className={`w-8 h-8 rounded-lg ${k.chip} flex items-center justify-center`}>
+                                    <Icon size={15} className={k.color} />
+                                </div>
                             </div>
                             <p className="text-2xl font-bold leading-none">{k.value}</p>
                         </div>
