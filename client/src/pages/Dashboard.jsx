@@ -5,7 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import Heatmap from '../components/Heatmap';
 import BadgeModal from '../components/BadgeModal';
 import { motion } from 'framer-motion';
-import { AlertCircle, TrendingUp, CheckCircle, Award, BarChart3, Flame, Square, ListChecks, Plus, Circle, CheckCircle2, Trash2, ArrowRight, Target, Brain, Sparkles, Activity, RefreshCw } from 'lucide-react';
+import { AlertCircle, TrendingUp, CheckCircle, Award, BarChart3, Flame, Square, ListChecks, Plus, Circle, CheckCircle2, Trash2, ArrowRight, Brain, Sparkles, Activity, RefreshCw } from 'lucide-react';
 
 const timeGreeting = () => {
     const h = new Date().getHours();
@@ -32,7 +32,6 @@ const Dashboard = () => {
         heatmapData: []
     });
     const [insight, setInsight] = useState(null);
-    const [briefing, setBriefing] = useState(null);
     const [motivation, setMotivation] = useState(null);
     const [graphData, setGraphData] = useState([]);
     const [weeklyHabits, setWeeklyHabits] = useState([]);
@@ -52,10 +51,9 @@ const Dashboard = () => {
         setIsRefreshing(true);
         try {
             await api.delete('/ai/cache');
-            const [tasksRes, aiRes, briefingRes, motivationRes] = await Promise.all([
+            const [tasksRes, aiRes, motivationRes] = await Promise.all([
                 api.get('/tasks?today=true').catch(() => null),
                 api.get('/ai/insights?refresh=true').catch(() => null),
-                api.get('/ai/briefing?refresh=true').catch(() => null),
                 api.get('/ai/motivation?refresh=true').catch(() => null),
             ]);
             if (tasksRes) {
@@ -68,7 +66,6 @@ const Dashboard = () => {
                 }));
             }
             if (aiRes) setInsight(aiRes.data);
-            if (briefingRes) setBriefing(briefingRes.data);
             if (motivationRes) setMotivation(motivationRes.data);
             setLastSynced(Date.now());
         } catch (e) {
@@ -106,11 +103,10 @@ const Dashboard = () => {
         const fetchDashboardData = async () => {
             try {
                 console.log("[DASHBOARD] Fetching data from all components...");
-                const [tasksRes, aiRes, analyticsRes, briefingRes, advAnalyticsRes, focusRes, motivationRes, habitsRes, todosRes] = await Promise.all([
+                const [tasksRes, aiRes, analyticsRes, advAnalyticsRes, focusRes, motivationRes, habitsRes, todosRes] = await Promise.all([
                     api.get('/tasks?today=true').then(r => { console.log("Tasks loaded"); return r; }).catch(e => { console.warn("Tasks failed", e); return { data: [] }; }),
                     api.get('/ai/insights').then(r => { console.log("Insights loaded"); return r; }).catch(e => { console.warn("Insights failed", e); return { data: { insight: "AI Service unavailable", productivity_score: 0 } }; }),
                     api.get('/goals/analytics').then(r => { console.log("Analytics loaded"); return r; }).catch(e => { console.warn("Analytics failed", e); return { data: { graphData: [], streak: 0 } }; }),
-                    api.get('/ai/briefing').then(r => { console.log("Briefing loaded"); return r; }).catch(e => { console.warn("Briefing failed", e); return { data: { briefing: "Focus on your goals today." } }; }),
                     api.get('/ai/advanced-analytics').then(r => { console.log("Adv Analytics loaded"); return r; }).catch(e => { console.warn("Adv Analytics failed", e); return { data: { consistency: { score: 0, trend: 'stable' }, burnout: { risk_level: 'LOW' }, heatmap: [] } }; }),
                     api.get('/ai/focus/stats').then(r => { console.log("Focus stats loaded"); return r; }).catch(e => { console.warn("Focus failed", e); return { data: { focus_score: 0, total_hours: 0 } }; }),
                     api.get('/ai/motivation').then(r => { console.log("Motivation loaded"); return r; }).catch(e => { console.warn("Motivation failed", e); return { data: { quote: "Your only limit is your mind.", author: "AscendAI" } }; }),
@@ -167,7 +163,6 @@ const Dashboard = () => {
                 );
 
                 setInsight(aiRes?.data);
-                setBriefing(briefingRes?.data);
                 setMotivation(motivationRes?.data);
                 setWeeklyHabits(habitsRes?.data || []);
                 setTodos(todosRes?.data || []);
@@ -230,6 +225,8 @@ const Dashboard = () => {
     );
 
     const hasData = stats.completedTasks > 0 || stats.pendingTasks > 0;
+    // Short weekday name (e.g. "Mon") to highlight today in the Momentum chain
+    const todayShort = new Date().toLocaleDateString('en-US', { weekday: 'short' });
 
     const weekDates = [];
     const now = new Date();
@@ -358,36 +355,50 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Today's Game Plan — redesigned */}
-                <div className="relative bg-card border border-border rounded-2xl p-6 overflow-hidden group hover:border-primary/40 transition-all duration-300">
-                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-indigo-500 to-purple-500 rounded-t-2xl" />
-                    <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-primary/5 rounded-full blur-xl group-hover:bg-primary/10 transition-all" />
+                {/* Momentum — "don't break the chain" streak visualizer */}
+                <div className="relative bg-card border border-border rounded-2xl p-6 overflow-hidden group hover:border-orange-500/40 transition-all duration-300">
+                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 rounded-t-2xl" />
+                    <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-orange-500/5 rounded-full blur-xl group-hover:bg-orange-500/10 transition-all" />
 
-                    <div className="relative z-10 flex items-start gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <Target size={18} className="text-primary" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-2">
-                                <p className="text-[11px] font-bold uppercase tracking-widest text-primary">Today's Game Plan</p>
-                                <button
-                                    onClick={refreshAiData}
-                                    disabled={isRefreshing}
-                                    title="Refresh AI analysis"
-                                    className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
-                                >
-                                    <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
-                                </button>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-5">
+                            <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                                <Flame size={18} className="text-orange-500" />
                             </div>
-                            <p className="text-sm font-semibold text-foreground leading-relaxed">
-                                {briefing?.briefing || "Add tasks to generate your personalized AI game plan."}
-                            </p>
-                            {briefing?.focus_priority && (
-                                <span className="inline-block mt-3 text-[11px] font-bold uppercase tracking-wider bg-primary/10 text-primary px-2.5 py-1 rounded-full">
-                                    {briefing.focus_priority}
-                                </span>
-                            )}
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-bold uppercase tracking-widest text-orange-500">Momentum</p>
+                                <p className="text-2xl font-bold leading-none mt-1">
+                                    {stats.streak}
+                                    <span className="text-sm font-medium text-muted-foreground ml-1.5">day{stats.streak === 1 ? '' : 's'} streak</span>
+                                </p>
+                            </div>
                         </div>
+
+                        {/* Weekly chain — a dot per day, filled when you showed up */}
+                        <div className="flex items-center justify-between gap-1 mb-4">
+                            {(graphData.length ? graphData : []).map((d, i) => {
+                                const active = d.completion > 0;
+                                const isToday = d.name === todayShort;
+                                return (
+                                    <div key={i} className="flex flex-col items-center gap-1.5">
+                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-500
+                                            ${active
+                                                ? 'bg-gradient-to-br from-orange-400 to-red-500 text-white shadow-sm shadow-orange-500/30'
+                                                : 'bg-secondary text-muted-foreground/40'}
+                                            ${isToday ? 'ring-2 ring-orange-400 ring-offset-2 ring-offset-card' : ''}`}>
+                                            {active ? d.completion : ''}
+                                        </div>
+                                        <span className={`text-[9px] ${isToday ? 'text-orange-500 font-bold' : 'text-muted-foreground'}`}>{d.name?.[0]}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                            {stats.streak > 0
+                                ? `🔥 You're on a ${stats.streak}-day roll — show up today to keep the chain alive.`
+                                : "Finish one task today to ignite your streak. Tomorrow it compounds."}
+                        </p>
                     </div>
                 </div>
             </div>

@@ -305,6 +305,7 @@ export const updateGoalProgress = async (goalId, userId) => {
 
         const goalDataRes = await query('SELECT status, goal_type FROM goals WHERE id = $1', [goalId]);
         const goal = goalDataRes.rows[0];
+        if (!goal) return; // Goal was deleted — nothing to update
 
         // Enforce progressive breakdown: min 4 tasks for short-term, 10 for long-term
         const minTasks = goal.goal_type === 'long-term' ? 10 : 4;

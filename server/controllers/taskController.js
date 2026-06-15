@@ -188,10 +188,14 @@ export const toggleHabitDay = async (req, res) => {
 
             const habit = habitRes.rows[0];
             const newTask = await query(
-                `INSERT INTO tasks (user_id, goal_id, habit_id, title, type, difficulty, due_date, is_completed, completed_at) 
+                `INSERT INTO tasks (user_id, goal_id, habit_id, title, type, difficulty, due_date, is_completed, completed_at)
                  VALUES ($1, $2, $3, $4, 'permanent', $5, $6, true, CURRENT_TIMESTAMP) RETURNING *`,
                 [req.user.id, habit.goal_id, habit.id, habit.title, habit.difficulty, parsedDate]
             );
+            // Keep the linked goal's progress in sync when a habit is completed
+            if (habit.goal_id) {
+                await updateGoalProgress(habit.goal_id, req.user.id);
+            }
             return res.json(newTask.rows[0]);
         } else {
             // Toggle existing task
@@ -201,6 +205,10 @@ export const toggleHabitDay = async (req, res) => {
                 `UPDATE tasks SET is_completed = $1, completed_at = $2 WHERE id = $3 RETURNING *`,
                 [newStatus, newStatus ? new Date() : null, existingTask.id]
             );
+            // Recompute goal progress so the Execution Board actually moves the bar
+            if (existingTask.goal_id) {
+                await updateGoalProgress(existingTask.goal_id, req.user.id);
+            }
             return res.json(toggleRes.rows[0]);
         }
     } catch (error) {
