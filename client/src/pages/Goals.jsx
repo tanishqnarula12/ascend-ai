@@ -4,14 +4,6 @@ import { Plus, Target, Trash2, Edit2, Clock, CheckCircle, TrendingUp, Loader, Fl
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
 
-// Category → colour theme so each goal reads at a glance.
-const CATEGORY_STYLE = {
-    Personal: { text: 'text-blue-500', from: 'from-blue-500', to: 'to-cyan-400', glow: 'bg-blue-500/10', bar: 'from-blue-500 to-cyan-400' },
-    Career: { text: 'text-purple-500', from: 'from-purple-500', to: 'to-fuchsia-400', glow: 'bg-purple-500/10', bar: 'from-purple-500 to-fuchsia-400' },
-    Health: { text: 'text-green-500', from: 'from-green-500', to: 'to-emerald-400', glow: 'bg-green-500/10', bar: 'from-green-500 to-emerald-400' },
-    Finance: { text: 'text-amber-500', from: 'from-amber-500', to: 'to-yellow-400', glow: 'bg-amber-500/10', bar: 'from-amber-500 to-yellow-400' },
-};
-const catStyle = (c) => CATEGORY_STYLE[c] || { text: 'text-primary', from: 'from-primary', to: 'to-indigo-500', glow: 'bg-primary/10', bar: 'from-primary to-indigo-500' };
 
 const Goals = () => {
     const [goals, setGoals] = useState([]);
@@ -78,10 +70,10 @@ const Goals = () => {
     const avgProgress = goals.length > 0 ? Math.round(goals.reduce((s, g) => s + (g.progress || 0), 0) / goals.length) : 0;
 
     const SUMMARY = [
-        { label: 'Total Goals', value: goals.length, icon: Target, text: 'text-indigo-500', from: 'from-indigo-500', to: 'to-blue-400', glow: 'bg-indigo-500/10' },
-        { label: 'Completed', value: completed, icon: CheckCircle, text: 'text-green-500', from: 'from-green-500', to: 'to-emerald-400', glow: 'bg-green-500/10' },
-        { label: 'In Progress', value: inProgress, icon: Loader, text: 'text-amber-500', from: 'from-amber-500', to: 'to-yellow-400', glow: 'bg-amber-500/10' },
-        { label: 'Avg Progress', value: `${avgProgress}%`, icon: TrendingUp, text: 'text-purple-500', from: 'from-purple-500', to: 'to-fuchsia-400', glow: 'bg-purple-500/10' },
+        { label: 'Total Goals', value: goals.length, icon: Target },
+        { label: 'Completed', value: completed, icon: CheckCircle },
+        { label: 'In Progress', value: inProgress, icon: Loader },
+        { label: 'Avg Progress', value: `${avgProgress}%`, icon: TrendingUp },
     ];
 
     return (
@@ -104,18 +96,12 @@ const Goals = () => {
                 {SUMMARY.map((s) => {
                     const Icon = s.icon;
                     return (
-                        <div key={s.label} className="relative bg-card border border-border rounded-2xl p-5 overflow-hidden group hover:border-primary/30 transition-all">
-                            <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${s.from} ${s.to}`} />
-                            <div className={`absolute -right-4 -bottom-4 w-20 h-20 ${s.glow} rounded-full blur-xl`} />
-                            <div className="relative z-10 flex items-center gap-3">
-                                <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${s.from} ${s.to} flex items-center justify-center flex-shrink-0 shadow-sm`}>
-                                    <Icon size={16} className="text-white" />
-                                </div>
-                                <div className="min-w-0">
-                                    <p className={`text-[10px] font-bold uppercase tracking-widest ${s.text}`}>{s.label}</p>
-                                    <p className="text-xl font-bold leading-none mt-0.5">{s.value}</p>
-                                </div>
+                        <div key={s.label} className="bg-card border border-border rounded-2xl p-5 transition-colors hover:border-foreground/20">
+                            <div className="flex items-center justify-between mb-3">
+                                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{s.label}</p>
+                                <Icon size={15} className="text-muted-foreground" />
                             </div>
+                            <p className="text-2xl font-bold leading-none">{s.value}</p>
                         </div>
                     );
                 })}
@@ -191,50 +177,44 @@ const Goals = () => {
 };
 
 const GoalCard = ({ goal, onEdit, onDelete }) => {
-    const s = catStyle(goal.category);
     const done = goal.progress >= 100;
 
     return (
-        <div className="relative h-full bg-card rounded-2xl border border-border p-6 shadow-sm hover:shadow-md transition-all group overflow-hidden hover:border-primary/30">
-            <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${s.from} ${s.to}`} />
-            <div className={`absolute -right-6 -bottom-6 w-24 h-24 ${s.glow} rounded-full blur-2xl group-hover:opacity-80 transition-all`} />
-
-            <div className="relative z-10">
-                <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full bg-gradient-to-br ${s.from} ${s.to} text-white uppercase tracking-wider`}>{goal.category}</span>
-                        <span className="text-[10px] text-muted-foreground border border-border px-2 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
-                            <Flag size={9} /> {goal.goal_type}
-                        </span>
-                    </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={onEdit} className="p-1.5 hover:bg-secondary rounded-lg text-muted-foreground hover:text-foreground"><Edit2 size={15} /></button>
-                        <button onClick={onDelete} className="p-1.5 hover:bg-destructive/10 rounded-lg text-muted-foreground hover:text-destructive"><Trash2 size={15} /></button>
-                    </div>
+        <div className="h-full bg-card rounded-2xl border border-border p-6 transition-colors group hover:border-foreground/20">
+            <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-secondary text-foreground uppercase tracking-wider">{goal.category}</span>
+                    <span className="text-[10px] text-muted-foreground border border-border px-2 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
+                        <Flag size={9} /> {goal.goal_type}
+                    </span>
                 </div>
-
-                <h3 className="text-lg font-bold mb-1.5 line-clamp-1" title={goal.title}>{goal.title}</h3>
-                <p className="text-muted-foreground text-sm mb-5 line-clamp-2 h-10">{goal.description || 'No description added.'}</p>
-
-                <div className="space-y-2">
-                    <div className="flex justify-between text-sm font-medium">
-                        <span className="text-muted-foreground">Progress</span>
-                        <span className={done ? 'text-green-500 font-bold' : ''}>{goal.progress}%</span>
-                    </div>
-                    <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full bg-gradient-to-r ${done ? 'from-green-500 to-emerald-400' : s.bar} transition-all duration-700`} style={{ width: `${goal.progress}%` }} />
-                    </div>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={onEdit} className="p-1.5 hover:bg-secondary rounded-lg text-muted-foreground hover:text-foreground"><Edit2 size={15} /></button>
+                    <button onClick={onDelete} className="p-1.5 hover:bg-destructive/10 rounded-lg text-muted-foreground hover:text-destructive"><Trash2 size={15} /></button>
                 </div>
+            </div>
 
-                <div className="mt-5 pt-4 border-t border-border flex justify-between items-center text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1.5">
-                        <Clock size={14} />
-                        <span>{goal.deadline ? new Date(goal.deadline).toLocaleDateString() : 'No deadline'}</span>
-                    </div>
-                    <div className={`flex items-center gap-1.5 font-semibold ${done ? 'text-green-500' : s.text}`}>
-                        {done ? <CheckCircle size={14} /> : <Target size={14} />}
-                        <span className="capitalize">{goal.status}</span>
-                    </div>
+            <h3 className="text-lg font-bold mb-1.5 line-clamp-1" title={goal.title}>{goal.title}</h3>
+            <p className="text-muted-foreground text-sm mb-5 line-clamp-2 h-10">{goal.description || 'No description added.'}</p>
+
+            <div className="space-y-2">
+                <div className="flex justify-between text-sm font-medium">
+                    <span className="text-muted-foreground">Progress</span>
+                    <span className={done ? 'text-green-500 font-bold' : ''}>{goal.progress}%</span>
+                </div>
+                <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-700 ${done ? 'bg-green-500' : 'bg-indigo-500'}`} style={{ width: `${goal.progress}%` }} />
+                </div>
+            </div>
+
+            <div className="mt-5 pt-4 border-t border-border flex justify-between items-center text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                    <Clock size={14} />
+                    <span>{goal.deadline ? new Date(goal.deadline).toLocaleDateString() : 'No deadline'}</span>
+                </div>
+                <div className={`flex items-center gap-1.5 font-semibold ${done ? 'text-green-500' : 'text-muted-foreground'}`}>
+                    {done ? <CheckCircle size={14} /> : <Target size={14} />}
+                    <span className="capitalize">{goal.status}</span>
                 </div>
             </div>
         </div>

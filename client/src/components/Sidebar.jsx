@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, CheckSquare, Target, LogOut, BarChart3, FileText, Sun, Moon, ListChecks } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import logo from '../assets/logo.png';
 
 const Sidebar = () => {
     const { logout } = useAuth();
@@ -26,7 +27,10 @@ const Sidebar = () => {
     return (
         <aside className="w-64 bg-card h-screen border-r border-border flex flex-col justify-between hidden md:flex">
             <div className="p-6">
-                <h1 className="text-2xl font-bold text-primary mb-8 tracking-tighter">AscendAI</h1>
+                <div className="flex items-center gap-2.5 mb-8">
+                    <img src={logo} alt="AscendAI" className="h-8 w-8 object-contain" />
+                    <h1 className="text-2xl font-bold text-foreground tracking-tighter">AscendAI</h1>
+                </div>
                 <nav className="space-y-2">
                     {navItems.map((item) => (
                         <NavLink

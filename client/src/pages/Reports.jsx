@@ -1,31 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
-import { FileText, Download, Calendar, Target, AlertTriangle, Lightbulb, CheckCircle, AlertCircle, Square, TrendingUp, TrendingDown, Flame, Sparkles, Award } from 'lucide-react';
+import { FileText, Download, Calendar, Target, AlertTriangle, Lightbulb, CheckCircle, AlertCircle, Square, TrendingUp, TrendingDown } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { computeRank } from '../lib/rank';
+import logo from '../assets/logo.png';
 
-// Map graded burnout levels to colour classes for the report card.
-const burnoutStyle = (risk) => {
+// Burnout keeps a semantic accent (it conveys real risk) but sits in a neutral box.
+const burnoutAccent = (risk) => {
     switch ((risk || '').toUpperCase()) {
-        case 'SEVERE': return { box: 'bg-red-600/10 border-red-600/20', text: 'text-red-600', dot: 'bg-red-600' };
-        case 'HIGH': return { box: 'bg-orange-500/10 border-orange-500/20', text: 'text-orange-500', dot: 'bg-orange-500' };
-        case 'MODERATE': return { box: 'bg-yellow-500/10 border-yellow-500/20', text: 'text-yellow-500', dot: 'bg-yellow-500' };
-        case 'LOW': return { box: 'bg-green-500/10 border-green-500/20', text: 'text-green-500', dot: 'bg-green-500' };
-        default: return { box: 'bg-secondary/50 border-border', text: 'text-muted-foreground', dot: 'bg-muted-foreground' };
+        case 'SEVERE': return 'text-red-600';
+        case 'HIGH': return 'text-orange-500';
+        case 'MODERATE': return 'text-yellow-500';
+        case 'LOW': return 'text-green-500';
+        default: return 'text-muted-foreground';
     }
 };
 
-// Turn a completion rate into a letter grade so the week feels like a scorecard.
-const gradeFor = (rate) => {
-    if (rate >= 90) return { letter: 'A+', label: 'Elite week', color: 'text-green-500', ring: '#22c55e' };
-    if (rate >= 80) return { letter: 'A', label: 'Outstanding', color: 'text-green-500', ring: '#22c55e' };
-    if (rate >= 70) return { letter: 'B', label: 'Strong', color: 'text-emerald-500', ring: '#10b981' };
-    if (rate >= 55) return { letter: 'C', label: 'Solid effort', color: 'text-yellow-500', ring: '#eab308' };
-    if (rate >= 40) return { letter: 'D', label: 'Inconsistent', color: 'text-orange-500', ring: '#f97316' };
-    return { letter: 'E', label: 'Needs a reset', color: 'text-red-500', ring: '#ef4444' };
-};
+const ACCENT = '#6366f1'; // single indigo accent used across reports
 
 // Big circular completion gauge — the hero stat of each report.
-const CompletionRing = ({ rate, ringColor }) => {
+const CompletionRing = ({ rate }) => {
     const r = 52;
     const circ = 2 * Math.PI * r;
     return (
@@ -34,7 +28,7 @@ const CompletionRing = ({ rate, ringColor }) => {
                 <circle cx="60" cy="60" r={r} fill="none" stroke="currentColor" strokeWidth="10" className="text-secondary" />
                 <circle
                     cx="60" cy="60" r={r} fill="none"
-                    stroke={ringColor} strokeWidth="10" strokeLinecap="round"
+                    stroke={ACCENT} strokeWidth="10" strokeLinecap="round"
                     strokeDasharray={circ}
                     strokeDashoffset={circ * (1 - rate / 100)}
                     style={{ transition: 'stroke-dashoffset 1s ease-out' }}
@@ -48,50 +42,78 @@ const CompletionRing = ({ rate, ringColor }) => {
     );
 };
 
+const Tile = ({ label, value, unit }) => (
+    <div className="p-3 bg-secondary/50 rounded-xl border border-border/50">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">{label}</p>
+        <p className="text-xl font-bold text-foreground">{value}{unit && <span className="text-xs font-medium text-muted-foreground ml-1">{unit}</span>}</p>
+    </div>
+);
+
 const Reports = () => {
     const [reports, setReports] = useState([]);
+    const [stats, setStats] = useState({});
     const [loading, setLoading] = useState(true);
+    const [printId, setPrintId] = useState(null);
 
     useEffect(() => {
-        const fetchReports = async () => {
+        const fetchAll = async () => {
             try {
-                const res = await api.get('/goals/reports');
-                setReports(res.data);
+                const [reportsRes, anaRes, advRes, focusRes] = await Promise.all([
+                    api.get('/goals/reports'),
+                    api.get('/goals/analytics').catch(() => ({ data: {} })),
+                    api.get('/ai/advanced-analytics').catch(() => ({ data: {} })),
+                    api.get('/ai/focus/stats').catch(() => ({ data: {} })),
+                ]);
+                setReports(reportsRes.data);
+                setStats({
+                    totalTasks: anaRes.data?.totalTasks || 0,
+                    streak: anaRes.data?.streak || 0,
+                    consistencyScore: advRes.data?.consistency?.score || 0,
+                    focusScore: focusRes.data?.focus_score || 0,
+                });
             } catch (error) {
                 console.error("Failed to fetch reports");
             } finally {
                 setLoading(false);
             }
         };
-        fetchReports();
+        fetchAll();
     }, []);
 
-    const handleDownload = () => window.print();
+    // Export only the clicked report: mark it, let the print: classes apply, then print.
+    useEffect(() => {
+        if (printId === null) return;
+        const after = () => setPrintId(null);
+        window.addEventListener('afterprint', after);
+        const t = setTimeout(() => window.print(), 80);
+        return () => { clearTimeout(t); window.removeEventListener('afterprint', after); };
+    }, [printId]);
+
+    const handleExport = (i) => setPrintId(i);
+
+    const rank = computeRank(stats);
+    const RankIcon = rank.tier.icon;
 
     if (loading) return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-5">
             <div className="relative w-16 h-16">
-                <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
-                <div className="absolute inset-0 rounded-full border-4 border-t-primary animate-spin" />
+                <div className="absolute inset-0 rounded-full border-4 border-secondary" />
+                <div className="absolute inset-0 rounded-full border-4 border-t-indigo-500 animate-spin" />
                 <div className="absolute inset-0 flex items-center justify-center">
-                    <FileText size={18} className="text-primary" />
+                    <FileText size={18} className="text-muted-foreground" />
                 </div>
             </div>
             <p className="text-sm text-muted-foreground">Generating your performance analysis…</p>
         </div>
     );
 
-    const latest = reports[0];
-
     return (
         <div className="space-y-8 pb-12">
-            {/* Print-only letterhead — gives the exported PDF a professional document feel */}
-            <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
+            {/* Print-only letterhead — gives the exported PDF a clean, professional document feel */}
+            <div className="hidden print:block mb-8 border-b border-slate-300 pb-5">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center">
-                            <Sparkles size={22} className="text-white" />
-                        </div>
+                        <img src={logo} alt="AscendAI" className="h-10 w-10 object-contain" />
                         <div>
                             <p className="text-xl font-extrabold tracking-tight text-slate-900">AscendAI</p>
                             <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500 font-semibold">Performance Intelligence Report</p>
@@ -99,113 +121,92 @@ const Reports = () => {
                     </div>
                     <div className="text-right text-xs text-slate-500">
                         <p className="font-semibold text-slate-700">Generated {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                        <p>Confidential · For the account holder</p>
+                        <p className="italic">Engineered to empower productivity</p>
                     </div>
                 </div>
             </div>
 
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 print:hidden">
-                <div>
-                    <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-primary mb-2">
-                        <Sparkles size={13} /> AI Performance Reports
+                <div className="flex items-center gap-3">
+                    <img src={logo} alt="AscendAI" className="h-10 w-10 object-contain" />
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight">Your Productivity Story</h1>
+                        <p className="text-muted-foreground mt-1">Weekly deep dives into how you're evolving — and where to push next.</p>
                     </div>
-                    <h1 className="text-3xl font-bold tracking-tight">Your Productivity Story</h1>
-                    <p className="text-muted-foreground mt-1">Weekly deep dives into how you're evolving — and where to push next.</p>
                 </div>
-                {latest && (
-                    <div className="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3">
-                        <Award size={22} className={gradeFor(latest.completion_rate).color} />
-                        <div>
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Latest grade</p>
-                            <p className={`text-lg font-extrabold leading-none ${gradeFor(latest.completion_rate).color}`}>
-                                {gradeFor(latest.completion_rate).letter}
-                                <span className="text-xs font-medium text-muted-foreground ml-2">{gradeFor(latest.completion_rate).label}</span>
-                            </p>
-                        </div>
+                <div className="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3">
+                    <div className="w-9 h-9 rounded-lg bg-secondary border border-border flex items-center justify-center">
+                        <RankIcon size={18} className="text-indigo-500" />
                     </div>
-                )}
+                    <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Current League</p>
+                        <p className="text-base font-bold leading-none mt-0.5">
+                            {rank.tier.name} {rank.division}
+                            <span className="text-xs font-medium text-muted-foreground ml-2">{rank.score.toLocaleString()} pts</span>
+                        </p>
+                    </div>
+                </div>
             </header>
 
             <div className="grid grid-cols-1 gap-6">
                 {reports.length === 0 ? (
                     <div className="bg-card p-12 rounded-2xl border border-dashed border-border text-center">
-                        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                            <FileText size={28} className="text-primary" />
+                        <div className="w-16 h-16 rounded-2xl bg-secondary border border-border flex items-center justify-center mx-auto mb-4">
+                            <FileText size={28} className="text-muted-foreground" />
                         </div>
                         <h3 className="font-bold text-lg">No reports yet</h3>
-                        <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">Complete a few tasks and your first AI weekly report will appear here automatically — with a grade, insights, and trends.</p>
+                        <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">Complete a few tasks and your first AI weekly report will appear here automatically — with insights, trends and your league standing.</p>
                     </div>
                 ) : (
                     reports.map((report, i) => {
-                        const grade = gradeFor(report.completion_rate);
-                        const bStyle = burnoutStyle(report.burnout_risk);
                         const consistency = report.focus_hours > 10 ? Math.round(report.focus_hours / 10) : report.focus_hours;
+                        const hidden = printId !== null && printId !== i;
                         return (
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.05 }}
                                 key={i}
-                                className="relative bg-card rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow overflow-hidden break-inside-avoid print:shadow-none print:border-slate-300"
+                                className={`bg-card rounded-2xl border border-border transition-colors hover:border-foreground/20 break-inside-avoid print:shadow-none print:border-slate-300 ${hidden ? 'print:hidden' : ''}`}
                             >
-                                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-indigo-500 to-purple-500" />
-
                                 <div className="p-6 md:p-8">
                                     {/* Top row: date + actions */}
                                     <div className="flex items-center justify-between mb-6">
                                         <div className="inline-flex items-center gap-2 text-sm font-semibold bg-secondary/60 px-3 py-1.5 rounded-full">
-                                            <Calendar size={14} className="text-primary" />
+                                            <Calendar size={14} className="text-muted-foreground" />
                                             <span>{new Date(report.start_date).toLocaleDateString()} – {new Date(report.end_date).toLocaleDateString()}</span>
-                                            {i === 0 && <span className="ml-1 text-[10px] font-bold uppercase bg-primary text-primary-foreground px-1.5 py-0.5 rounded">Latest</span>}
+                                            {i === 0 && <span className="ml-1 text-[10px] font-bold uppercase bg-foreground text-background px-1.5 py-0.5 rounded">Latest</span>}
                                         </div>
                                         <button
-                                            onClick={handleDownload}
-                                            title="Download / print report"
-                                            className="flex items-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors text-primary text-sm font-semibold print:hidden"
+                                            onClick={() => handleExport(i)}
+                                            title="Export this report as PDF"
+                                            className="flex items-center gap-2 px-3 py-2 bg-secondary hover:bg-secondary/70 rounded-lg transition-colors text-foreground text-sm font-semibold print:hidden"
                                         >
                                             <Download size={16} /> Export PDF
                                         </button>
                                     </div>
 
-                                    {/* Hero: ring + grade + summary */}
+                                    {/* Hero: ring + league + summary */}
                                     <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start">
                                         <div className="flex flex-col items-center gap-3">
-                                            <CompletionRing rate={report.completion_rate} ringColor={grade.ring} />
-                                            <div className={`flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/60 ${grade.color}`}>
-                                                <span className="text-lg font-extrabold leading-none">{grade.letter}</span>
-                                                <span className="text-xs font-medium text-muted-foreground">{grade.label}</span>
+                                            <CompletionRing rate={report.completion_rate} />
+                                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/60 border border-border/50">
+                                                <RankIcon size={15} className="text-indigo-500" />
+                                                <span className="text-sm font-bold">{rank.tier.name} {rank.division}</span>
                                             </div>
                                         </div>
 
                                         <div className="flex-1 min-w-0">
                                             <h3 className="text-base font-bold mb-2 flex items-center gap-2">
-                                                <Lightbulb className="text-yellow-500" size={18} /> AI Summary
+                                                <Lightbulb className="text-indigo-500" size={18} /> AI Summary
                                             </h3>
                                             <p className="text-muted-foreground leading-relaxed text-sm md:text-base">{report.ai_summary}</p>
 
                                             {/* Stat tiles */}
                                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-5">
-                                                <div className="p-3 bg-secondary/50 rounded-xl">
-                                                    <div className="flex items-center gap-1.5 mb-1">
-                                                        <TrendingUp size={13} className="text-primary" />
-                                                        <p className="text-[10px] font-bold uppercase text-muted-foreground">Completion</p>
-                                                    </div>
-                                                    <p className="text-xl font-bold text-foreground">{report.completion_rate}%</p>
-                                                </div>
-                                                <div className="p-3 bg-secondary/50 rounded-xl">
-                                                    <div className="flex items-center gap-1.5 mb-1">
-                                                        <Flame size={13} className="text-orange-500" />
-                                                        <p className="text-[10px] font-bold uppercase text-muted-foreground">Consistency</p>
-                                                    </div>
-                                                    <p className="text-xl font-bold text-foreground">{consistency}/10</p>
-                                                </div>
-                                                <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl col-span-2 sm:col-span-1">
-                                                    <div className="flex items-center gap-1.5 mb-1">
-                                                        <CheckCircle size={13} className="text-primary" />
-                                                        <p className="text-[10px] font-bold uppercase text-primary">Lifetime</p>
-                                                    </div>
-                                                    <p className="text-xl font-bold text-primary">{report.total_tasks_completed || 0} <span className="text-xs font-medium">tasks</span></p>
-                                                </div>
+                                                <Tile label="Completion" value={`${report.completion_rate}%`} />
+                                                <Tile label="Consistency" value={`${consistency}/10`} />
+                                                <Tile label="Lifetime" value={report.total_tasks_completed || 0} unit="tasks" />
                                             </div>
                                         </div>
                                     </div>
@@ -214,27 +215,27 @@ const Reports = () => {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                                         <div className="p-5 border border-border rounded-xl">
                                             <h4 className="font-bold flex items-center gap-2 mb-3 text-sm">
-                                                <Target className="text-indigo-500" size={16} /> Goal Insights
+                                                <Target className="text-muted-foreground" size={16} /> Goal Insights
                                             </h4>
                                             <div className="space-y-2.5">
                                                 <div className="flex justify-between items-center text-sm">
-                                                    <span className="text-muted-foreground flex items-center gap-1.5"><TrendingUp size={13} className="text-green-500" /> Strongest</span>
-                                                    <span className="font-semibold text-green-500 truncate max-w-[55%]">{report.strongest_goal || 'None yet'}</span>
+                                                    <span className="text-muted-foreground flex items-center gap-1.5"><TrendingUp size={13} /> Strongest</span>
+                                                    <span className="font-semibold text-foreground truncate max-w-[55%]">{report.strongest_goal || 'None yet'}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-sm">
-                                                    <span className="text-muted-foreground flex items-center gap-1.5"><TrendingDown size={13} className="text-red-500" /> Needs work</span>
-                                                    <span className="font-semibold text-red-500 truncate max-w-[55%]">{report.weakest_goal || 'None yet'}</span>
+                                                    <span className="text-muted-foreground flex items-center gap-1.5"><TrendingDown size={13} /> Needs work</span>
+                                                    <span className="font-semibold text-muted-foreground truncate max-w-[55%]">{report.weakest_goal || 'None yet'}</span>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className={`p-5 rounded-xl border ${bStyle.box}`}>
-                                            <h4 className={`font-bold flex items-center gap-2 mb-3 text-sm ${bStyle.text}`}>
-                                                <AlertTriangle size={16} /> Burnout Risk
+                                        <div className="p-5 rounded-xl border border-border">
+                                            <h4 className="font-bold flex items-center gap-2 mb-3 text-sm">
+                                                <AlertTriangle size={16} className="text-muted-foreground" /> Burnout Risk
                                             </h4>
                                             <div className="flex items-center gap-2">
-                                                <span className={`w-2.5 h-2.5 rounded-full ${bStyle.dot}`} />
-                                                <p className={`text-sm font-bold uppercase tracking-wider ${bStyle.text}`}>{report.burnout_risk || 'N/A'}</p>
+                                                <span className={`w-2.5 h-2.5 rounded-full ${burnoutAccent(report.burnout_risk).replace('text-', 'bg-')}`} />
+                                                <p className={`text-sm font-bold uppercase tracking-wider ${burnoutAccent(report.burnout_risk)}`}>{report.burnout_risk || 'N/A'}</p>
                                             </div>
                                             <p className="text-xs text-muted-foreground mt-2">
                                                 {(report.burnout_risk || '').toUpperCase() === 'LOW'
@@ -249,8 +250,8 @@ const Reports = () => {
                                     {/* Embedded Habit Matrix */}
                                     {report.habit_matrix && report.habit_matrix.length > 0 && (
                                         <div className="mt-6 border-t border-border pt-6">
-                                            <h4 className="font-bold flex items-center gap-2 mb-4 text-sm text-primary">
-                                                <CheckCircle size={16} /> Permanent Task Snapshot
+                                            <h4 className="font-bold flex items-center gap-2 mb-4 text-sm">
+                                                <CheckCircle size={16} className="text-muted-foreground" /> Permanent Task Snapshot
                                             </h4>
                                             <div className="overflow-x-auto">
                                                 <table className="w-full text-left text-sm">

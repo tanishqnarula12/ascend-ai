@@ -305,31 +305,26 @@ const Dashboard = () => {
                 </div>
             </header>
 
-            {/* Daily Motivation Card — redesigned */}
+            {/* Daily Motivation Card — minimal */}
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="relative overflow-hidden rounded-2xl border border-border bg-card"
+                className="rounded-2xl border border-border bg-card"
             >
-                {/* Subtle background orbs */}
-                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-purple-500/5 pointer-events-none" />
-                <div className="absolute -top-16 -right-16 w-56 h-56 bg-orange-400/10 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-
-                <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6 p-7">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 p-7">
                     <div className="flex-shrink-0">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/25">
-                            <Flame className="text-white fill-white" size={26} />
+                        <div className="w-12 h-12 rounded-2xl bg-secondary border border-border flex items-center justify-center">
+                            <Sparkles className="text-indigo-500" size={22} />
                         </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-bold uppercase tracking-widest text-orange-500 mb-2">Daily Motivation</p>
-                        <blockquote className="text-xl md:text-2xl font-bold text-foreground leading-snug">
+                        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Daily Motivation</p>
+                        <blockquote className="text-xl md:text-2xl font-semibold text-foreground leading-snug">
                             "{motivation?.quote || "The secret of getting ahead is getting started."}"
                         </blockquote>
                         <div className="mt-4 flex items-center gap-3">
                             <div className="h-px flex-1 bg-border" />
-                            <cite className="text-sm font-semibold text-muted-foreground not-italic flex-shrink-0">
+                            <cite className="text-sm font-medium text-muted-foreground not-italic flex-shrink-0">
                                 — {motivation?.author || "AscendAI Wisdom"}
                             </cite>
                         </div>
@@ -340,139 +335,108 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
 
                 {/* Momentum — "don't break the chain" streak visualizer (1st position) */}
-                <div className="relative h-full flex flex-col bg-card border border-border rounded-2xl p-6 overflow-hidden group hover:border-orange-500/40 transition-all duration-300">
-                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 rounded-t-2xl" />
-                    <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-orange-500/5 rounded-full blur-xl group-hover:bg-orange-500/10 transition-all" />
-                    <div className="relative z-10 flex flex-col h-full">
-                        <div className="flex items-center gap-3 mb-5">
-                            <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center flex-shrink-0">
-                                <Flame size={18} className="text-orange-500" />
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-[11px] font-bold uppercase tracking-widest text-orange-500">Momentum</p>
-                                <p className="text-2xl font-bold leading-none mt-1">
-                                    {stats.streak}
-                                    <span className="text-sm font-medium text-muted-foreground ml-1.5">day{stats.streak === 1 ? '' : 's'} streak</span>
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* 7-day chain — chronological, ends on today (rightmost) */}
-                        <div className="flex items-center justify-between gap-1 mb-4">
-                            {momentumChain.map((d, i) => {
-                                const isToday = d.name === todayShort;
-                                // Today's dot uses the authoritative live count so it always
-                                // agrees with the "Today" card; past dots use historical data.
-                                const count = isToday ? stats.completedTasks : d.completion;
-                                const active = count > 0;
-                                return (
-                                    <div key={i} className="flex flex-col items-center gap-1.5">
-                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-500
-                                            ${active
-                                                ? 'bg-gradient-to-br from-orange-400 to-red-500 text-white shadow-sm shadow-orange-500/30'
-                                                : 'bg-secondary text-muted-foreground/40'}
-                                            ${isToday ? 'ring-2 ring-orange-400 ring-offset-2 ring-offset-card' : ''}`}>
-                                            {active ? count : ''}
-                                        </div>
-                                        <span className={`text-[9px] ${isToday ? 'text-orange-500 font-bold' : 'text-muted-foreground'}`}>{d.name?.[0]}</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        <p className="text-xs text-muted-foreground leading-relaxed mt-auto">
-                            {stats.streak > 0
-                                ? `🔥 You're on a ${stats.streak}-day roll — show up today to keep the chain alive.`
-                                : "Finish one task today to ignite your streak. Tomorrow it compounds."}
-                        </p>
+                <div className="h-full flex flex-col bg-card border border-border rounded-2xl p-6 transition-colors hover:border-foreground/20">
+                    <div className="flex items-center justify-between mb-5">
+                        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Momentum</p>
+                        <Flame size={16} className="text-muted-foreground" />
                     </div>
+                    <p className="text-2xl font-bold leading-none mb-5">
+                        {stats.streak}
+                        <span className="text-sm font-medium text-muted-foreground ml-1.5">day{stats.streak === 1 ? '' : 's'} streak</span>
+                    </p>
+
+                    {/* 7-day chain — chronological, ends on today (rightmost) */}
+                    <div className="flex items-center justify-between gap-1 mb-4">
+                        {momentumChain.map((d, i) => {
+                            const isToday = d.name === todayShort;
+                            // Today's dot uses the authoritative live count so it always
+                            // agrees with the "Today" card; past dots use historical data.
+                            const count = isToday ? stats.completedTasks : d.completion;
+                            const active = count > 0;
+                            return (
+                                <div key={i} className="flex flex-col items-center gap-1.5">
+                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-500
+                                        ${active ? 'bg-indigo-500 text-white' : 'bg-secondary text-muted-foreground/40'}
+                                        ${isToday ? 'ring-2 ring-indigo-400 ring-offset-2 ring-offset-card' : ''}`}>
+                                        {active ? count : ''}
+                                    </div>
+                                    <span className={`text-[9px] ${isToday ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>{d.name?.[0]}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-auto">
+                        {stats.streak > 0
+                            ? `You're on a ${stats.streak}-day roll — show up today to keep the chain alive.`
+                            : "Finish one task today to ignite your streak. Tomorrow it compounds."}
+                    </p>
                 </div>
 
                 {/* Consistency Score */}
-                <div className="relative h-full flex flex-col bg-card border border-border rounded-2xl p-6 overflow-hidden group hover:border-indigo-500/40 transition-all duration-300">
-                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-400 rounded-t-2xl" />
-                    <div className="absolute -right-5 -bottom-5 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl group-hover:bg-indigo-500/10 transition-all" />
-                    <div className="relative z-10 flex flex-col h-full">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
-                                <TrendingUp size={18} className="text-indigo-500" />
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-500">Consistency</p>
-                                <p className="text-2xl font-bold leading-none mt-1">
-                                    {stats.consistencyScore ?? 0}
-                                    <span className="text-sm font-medium text-muted-foreground ml-1">/ 100</span>
-                                </p>
-                            </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed mt-auto">
-                            {(stats.consistencyScore ?? 0) >= 70
-                                ? "Rock solid. You're building an unbreakable habit loop."
-                                : (stats.consistencyScore ?? 0) >= 40
-                                    ? "Good momentum. Close more tasks daily to push this higher."
-                                    : "Show up consistently — even small wins compound fast."}
-                        </p>
+                <div className="h-full flex flex-col bg-card border border-border rounded-2xl p-6 transition-colors hover:border-foreground/20">
+                    <div className="flex items-center justify-between mb-5">
+                        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Consistency</p>
+                        <TrendingUp size={16} className="text-muted-foreground" />
                     </div>
+                    <p className="text-2xl font-bold leading-none mb-3">
+                        {stats.consistencyScore ?? 0}
+                        <span className="text-sm font-medium text-muted-foreground ml-1">/ 100</span>
+                    </p>
+                    <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden mb-4">
+                        <div className="h-full bg-indigo-500 rounded-full transition-all duration-700" style={{ width: `${Math.min(100, stats.consistencyScore ?? 0)}%` }} />
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-auto">
+                        {(stats.consistencyScore ?? 0) >= 70
+                            ? "Rock solid. You're building an unbreakable habit loop."
+                            : (stats.consistencyScore ?? 0) >= 40
+                                ? "Good momentum. Close more tasks daily to push this higher."
+                                : "Show up consistently — even small wins compound fast."}
+                    </p>
                 </div>
 
                 {/* Rank / League — gamified grade (replaces badges) */}
-                <div onClick={() => setIsBadgeModalOpen(true)} className={`relative h-full flex flex-col bg-card border border-border rounded-2xl p-6 overflow-hidden group cursor-pointer hover:border-primary/40 transition-all duration-300`}>
-                    <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${rank.tier.from} ${rank.tier.to} rounded-t-2xl`} />
-                    <div className={`absolute -right-5 -bottom-5 w-24 h-24 ${rank.tier.glow} rounded-full blur-xl group-hover:opacity-80 transition-all`} />
-                    <div className="relative z-10 flex flex-col h-full">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${rank.tier.from} ${rank.tier.to} flex items-center justify-center flex-shrink-0 shadow-sm`}>
-                                <RankIcon size={18} className="text-white" />
-                            </div>
-                            <div className="min-w-0">
-                                <p className={`text-[11px] font-bold uppercase tracking-widest ${rank.tier.text}`}>League</p>
-                                <p className="text-2xl font-bold leading-none mt-1">
-                                    {rank.tier.name}
-                                    <span className="text-sm font-medium text-muted-foreground ml-1.5">{rank.division}</span>
-                                </p>
-                            </div>
+                <div onClick={() => setIsBadgeModalOpen(true)} className="h-full flex flex-col bg-card border border-border rounded-2xl p-6 cursor-pointer transition-colors hover:border-foreground/20 group">
+                    <div className="flex items-center justify-between mb-5">
+                        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">League</p>
+                        <RankIcon size={16} className="text-indigo-500" />
+                    </div>
+                    <p className="text-2xl font-bold leading-none mb-3">
+                        {rank.tier.name}
+                        <span className="text-sm font-medium text-muted-foreground ml-1.5">{rank.division}</span>
+                    </p>
+                    <div className="mt-auto">
+                        <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                            <div className="h-full bg-indigo-500 rounded-full transition-all duration-700" style={{ width: `${rank.progress}%` }} />
                         </div>
-                        <div className="mt-auto">
-                            <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                                <div className={`h-full bg-gradient-to-r ${rank.tier.from} ${rank.tier.to} rounded-full transition-all duration-700`} style={{ width: `${rank.progress}%` }} />
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-2 group-hover:text-foreground transition-colors">
-                                {rank.next ? `${rank.pointsToNext.toLocaleString()} pts to ${rank.next.name} →` : 'Top league reached 🏆'}
-                            </p>
-                        </div>
+                        <p className="text-xs text-muted-foreground mt-2 group-hover:text-foreground transition-colors">
+                            {rank.next ? `${rank.pointsToNext.toLocaleString()} pts to ${rank.next.name}` : 'Top league reached'}
+                        </p>
                     </div>
                 </div>
 
                 {/* Today's Progress */}
-                <div className="relative h-full flex flex-col bg-card border border-border rounded-2xl p-6 overflow-hidden group hover:border-cyan-500/40 transition-all duration-300">
-                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 rounded-t-2xl" />
-                    <div className="absolute -right-5 -bottom-5 w-24 h-24 bg-cyan-500/5 rounded-full blur-xl group-hover:bg-cyan-500/10 transition-all" />
-                    <div className="relative z-10 flex flex-col h-full">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-9 h-9 rounded-xl bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                                <CheckCircle size={18} className="text-cyan-500" />
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-[11px] font-bold uppercase tracking-widest text-cyan-500">Today</p>
-                                <p className="text-2xl font-bold leading-none mt-1">
-                                    {stats.completedTasks}
-                                    <span className="text-sm font-medium text-muted-foreground ml-1">
-                                        / {stats.completedTasks + stats.pendingTasks} done
-                                    </span>
-                                </p>
-                            </div>
+                <div className="h-full flex flex-col bg-card border border-border rounded-2xl p-6 transition-colors hover:border-foreground/20">
+                    <div className="flex items-center justify-between mb-5">
+                        <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Today</p>
+                        <CheckCircle size={16} className="text-muted-foreground" />
+                    </div>
+                    <p className="text-2xl font-bold leading-none mb-3">
+                        {stats.completedTasks}
+                        <span className="text-sm font-medium text-muted-foreground ml-1">
+                            / {stats.completedTasks + stats.pendingTasks} done
+                        </span>
+                    </p>
+                    <div className="mt-auto">
+                        <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-indigo-500 rounded-full transition-all duration-700"
+                                style={{ width: `${hasData ? Math.round((stats.completedTasks / (stats.completedTasks + stats.pendingTasks)) * 100) : 0}%` }}
+                            />
                         </div>
-                        <div className="mt-auto">
-                            <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full transition-all duration-700"
-                                    style={{ width: `${hasData ? Math.round((stats.completedTasks / (stats.completedTasks + stats.pendingTasks)) * 100) : 0}%` }}
-                                />
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-2">
-                                {hasData ? `${Math.round((stats.completedTasks / (stats.completedTasks + stats.pendingTasks)) * 100)}% of today's tasks cleared` : "No tasks yet — add one to start."}
-                            </p>
-                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                            {hasData ? `${Math.round((stats.completedTasks / (stats.completedTasks + stats.pendingTasks)) * 100)}% of today's tasks cleared` : "No tasks yet — add one to start."}
+                        </p>
                     </div>
                 </div>
 
@@ -682,14 +646,11 @@ const Dashboard = () => {
                         recommendation={stats.burnoutRecommendation}
                     />
 
-                    {/* AI Insight — redesigned with productivity ring */}
-                    <div className="relative bg-card border border-border rounded-xl p-6 overflow-hidden group hover:border-indigo-500/40 transition-all duration-300">
-                        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-t-xl" />
-                        <div className="absolute -bottom-8 -right-8 w-28 h-28 bg-indigo-500/5 rounded-full blur-2xl group-hover:bg-indigo-500/10 transition-all" />
-
-                        <div className="relative z-10 flex items-start justify-between gap-4 mb-4">
+                    {/* AI Insight — minimal with productivity ring */}
+                    <div className="bg-card border border-border rounded-xl p-6 transition-colors hover:border-foreground/20">
+                        <div className="flex items-start justify-between gap-4 mb-4">
                             <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-lg bg-secondary border border-border flex items-center justify-center">
                                     <Brain size={16} className="text-indigo-500" />
                                 </div>
                                 <h3 className="font-bold text-foreground">AI Insight</h3>
@@ -700,17 +661,11 @@ const Dashboard = () => {
                                     <circle cx="28" cy="28" r="22" fill="none" stroke="currentColor" strokeWidth="4" className="text-secondary" />
                                     <circle
                                         cx="28" cy="28" r="22" fill="none"
-                                        stroke="url(#aiGrad)" strokeWidth="4" strokeLinecap="round"
+                                        stroke="#6366f1" strokeWidth="4" strokeLinecap="round"
                                         strokeDasharray={`${2 * Math.PI * 22}`}
                                         strokeDashoffset={`${2 * Math.PI * 22 * (1 - (insight?.productivity_score || 0) / 100)}`}
                                         className="transition-all duration-700"
                                     />
-                                    <defs>
-                                        <linearGradient id="aiGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                                            <stop offset="0%" stopColor="#6366f1" />
-                                            <stop offset="100%" stopColor="#a855f7" />
-                                        </linearGradient>
-                                    </defs>
                                 </svg>
                                 <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground">
                                     {insight?.productivity_score ?? 0}%
@@ -718,11 +673,11 @@ const Dashboard = () => {
                             </div>
                         </div>
 
-                        <p className="relative z-10 text-sm text-foreground/80 leading-relaxed mb-4">
+                        <p className="text-sm text-foreground/80 leading-relaxed mb-4">
                             {insight?.insight || (hasData ? "Analyzing your patterns..." : "Add tasks to unlock personalized AI insights.")}
                         </p>
 
-                        <div className="relative z-10 flex items-center justify-between gap-2">
+                        <div className="flex items-center justify-between gap-2">
                             <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
                                 insight?.mood_trend === 'Improving' ? 'bg-green-500/10 text-green-500' :
                                 insight?.mood_trend === 'Declining' ? 'bg-red-500/10 text-red-500' :
