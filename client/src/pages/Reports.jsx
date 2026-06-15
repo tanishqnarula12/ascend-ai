@@ -85,7 +85,26 @@ const Reports = () => {
 
     return (
         <div className="space-y-8 pb-12">
-            <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            {/* Print-only letterhead — gives the exported PDF a professional document feel */}
+            <div className="hidden print:block mb-8 border-b-2 border-slate-900 pb-4">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center">
+                            <Sparkles size={22} className="text-white" />
+                        </div>
+                        <div>
+                            <p className="text-xl font-extrabold tracking-tight text-slate-900">AscendAI</p>
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500 font-semibold">Performance Intelligence Report</p>
+                        </div>
+                    </div>
+                    <div className="text-right text-xs text-slate-500">
+                        <p className="font-semibold text-slate-700">Generated {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                        <p>Confidential · For the account holder</p>
+                    </div>
+                </div>
+            </div>
+
+            <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 print:hidden">
                 <div>
                     <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-primary mb-2">
                         <Sparkles size={13} /> AI Performance Reports
@@ -127,7 +146,7 @@ const Reports = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.05 }}
                                 key={i}
-                                className="relative bg-card rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+                                className="relative bg-card rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow overflow-hidden break-inside-avoid print:shadow-none print:border-slate-300"
                             >
                                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-indigo-500 to-purple-500" />
 
@@ -142,9 +161,9 @@ const Reports = () => {
                                         <button
                                             onClick={handleDownload}
                                             title="Download / print report"
-                                            className="p-2 hover:bg-secondary rounded-full transition-colors text-muted-foreground hover:text-foreground"
+                                            className="flex items-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors text-primary text-sm font-semibold print:hidden"
                                         >
-                                            <Download size={18} />
+                                            <Download size={16} /> Export PDF
                                         </button>
                                     </div>
 

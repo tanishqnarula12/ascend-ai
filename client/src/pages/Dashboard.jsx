@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import Heatmap from '../components/Heatmap';
-import BadgeModal from '../components/BadgeModal';
+import RankModal from '../components/RankModal';
+import { computeRank } from '../lib/rank';
 import { motion } from 'framer-motion';
-import { AlertCircle, TrendingUp, CheckCircle, Award, BarChart3, Flame, Square, ListChecks, Plus, Circle, CheckCircle2, Trash2, ArrowRight, Brain, Sparkles, Activity, RefreshCw } from 'lucide-react';
+import { AlertCircle, TrendingUp, CheckCircle, BarChart3, Flame, Square, ListChecks, Plus, Circle, CheckCircle2, Trash2, ArrowRight, Brain, Sparkles, Activity, RefreshCw } from 'lucide-react';
 
 const timeGreeting = () => {
     const h = new Date().getHours();
@@ -235,6 +235,10 @@ const Dashboard = () => {
         ? [...graphData.slice(todayIdx + 1), ...graphData.slice(0, todayIdx + 1)]
         : graphData;
 
+    // Gamified rank/league derived from real activity (replaces meaningless badges)
+    const rank = computeRank(stats);
+    const RankIcon = rank.tier.icon;
+
     const weekDates = [];
     const now = new Date();
     // Normalize today for comparison
@@ -411,26 +415,31 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Badges */}
-                <div onClick={() => setIsBadgeModalOpen(true)} className="relative h-full flex flex-col bg-card border border-border rounded-2xl p-6 overflow-hidden group cursor-pointer hover:border-purple-500/40 transition-all duration-300">
-                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 via-violet-500 to-pink-500 rounded-t-2xl" />
-                    <div className="absolute -right-5 -bottom-5 w-24 h-24 bg-purple-500/5 rounded-full blur-xl group-hover:bg-purple-500/10 transition-all" />
+                {/* Rank / League — gamified grade (replaces badges) */}
+                <div onClick={() => setIsBadgeModalOpen(true)} className={`relative h-full flex flex-col bg-card border border-border rounded-2xl p-6 overflow-hidden group cursor-pointer hover:border-primary/40 transition-all duration-300`}>
+                    <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${rank.tier.from} ${rank.tier.to} rounded-t-2xl`} />
+                    <div className={`absolute -right-5 -bottom-5 w-24 h-24 ${rank.tier.glow} rounded-full blur-xl group-hover:opacity-80 transition-all`} />
                     <div className="relative z-10 flex flex-col h-full">
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="w-9 h-9 rounded-xl bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-                                <Award size={18} className="text-purple-500" />
+                            <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${rank.tier.from} ${rank.tier.to} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                                <RankIcon size={18} className="text-white" />
                             </div>
                             <div className="min-w-0">
-                                <p className="text-[11px] font-bold uppercase tracking-widest text-purple-500">Badges</p>
+                                <p className={`text-[11px] font-bold uppercase tracking-widest ${rank.tier.text}`}>League</p>
                                 <p className="text-2xl font-bold leading-none mt-1">
-                                    {stats.achievements || 0}
-                                    <span className="text-sm font-medium text-muted-foreground ml-1.5">earned</span>
+                                    {rank.tier.name}
+                                    <span className="text-sm font-medium text-muted-foreground ml-1.5">{rank.division}</span>
                                 </p>
                             </div>
                         </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed group-hover:text-purple-500/80 transition-colors mt-auto">
-                            Tap to view your collection →
-                        </p>
+                        <div className="mt-auto">
+                            <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                                <div className={`h-full bg-gradient-to-r ${rank.tier.from} ${rank.tier.to} rounded-full transition-all duration-700`} style={{ width: `${rank.progress}%` }} />
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2 group-hover:text-foreground transition-colors">
+                                {rank.next ? `${rank.pointsToNext.toLocaleString()} pts to ${rank.next.name} →` : 'Top league reached 🏆'}
+                            </p>
+                        </div>
                     </div>
                 </div>
 
@@ -760,7 +769,7 @@ const Dashboard = () => {
                     </div>
                 </div>
             </div>
-            <BadgeModal
+            <RankModal
                 isOpen={isBadgeModalOpen}
                 onClose={() => setIsBadgeModalOpen(false)}
                 stats={stats}

@@ -64,6 +64,17 @@
       print-color-adjust: exact !important;
     }
 
+    @page {
+      margin: 14mm;
+    }
+
+    /* Let the document flow across pages instead of being clipped to the viewport */
+    html, body, #root {
+      height: auto !important;
+      overflow: visible !important;
+      background: #fff !important;
+    }
+
     html.dark {
       --background: 0 0% 100%;
       --foreground: 222.2 84% 4.9%;

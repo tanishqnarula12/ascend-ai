@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import {
-    LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell
 } from 'recharts';
-import { Target, Zap, Clock, Calendar, ChevronRight } from 'lucide-react';
+import { Target, Zap, Flame, Trophy } from 'lucide-react';
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
 
@@ -43,12 +43,44 @@ const Analytics = () => {
         { name: 'Abandoned', value: goals.filter(g => g.status === 'abandoned').length },
     ].filter(d => d.value > 0);
 
+    const completedGoals = goals.filter(g => g.status === 'completed').length;
+    const activeGoals = goals.filter(g => g.status !== 'completed').length;
+
+    const KPIS = [
+        { label: 'Day Streak', value: analytics?.streak || 0, icon: Flame, text: 'text-orange-500', from: 'from-amber-400', to: 'to-orange-500', glow: 'bg-orange-500/10' },
+        { label: 'Tasks Done', value: analytics?.totalTasks || 0, icon: Zap, text: 'text-blue-500', from: 'from-blue-500', to: 'to-cyan-400', glow: 'bg-blue-500/10' },
+        { label: 'Goals Hit', value: completedGoals, icon: Trophy, text: 'text-green-500', from: 'from-green-500', to: 'to-emerald-400', glow: 'bg-green-500/10' },
+        { label: 'Active Goals', value: activeGoals, icon: Target, text: 'text-purple-500', from: 'from-purple-500', to: 'to-fuchsia-400', glow: 'bg-purple-500/10' },
+    ];
+
     return (
         <div className="space-y-8 pb-12">
             <header>
                 <h1 className="text-3xl font-bold tracking-tight">Performance Analytics</h1>
                 <p className="text-muted-foreground mt-1">Deep dive into your progress and patterns.</p>
             </header>
+
+            {/* KPI row */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {KPIS.map((k) => {
+                    const Icon = k.icon;
+                    return (
+                        <div key={k.label} className="relative bg-card border border-border rounded-2xl p-5 overflow-hidden group hover:border-primary/30 transition-all">
+                            <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${k.from} ${k.to}`} />
+                            <div className={`absolute -right-4 -bottom-4 w-20 h-20 ${k.glow} rounded-full blur-xl`} />
+                            <div className="relative z-10 flex items-center gap-3">
+                                <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${k.from} ${k.to} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                                    <Icon size={16} className="text-white" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className={`text-[10px] font-bold uppercase tracking-widest ${k.text}`}>{k.label}</p>
+                                    <p className="text-xl font-bold leading-none mt-0.5">{k.value}</p>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Weekly Volume */}
