@@ -61,15 +61,17 @@ const Reports = () => {
     useEffect(() => {
         const fetchAll = async () => {
             try {
-                const [reportsRes, anaRes, advRes, focusRes] = await Promise.all([
+                const [reportsRes, anaRes, advRes, focusRes, seasonRes] = await Promise.all([
                     api.get('/goals/reports'),
                     api.get('/goals/analytics').catch(() => ({ data: {} })),
                     api.get('/ai/advanced-analytics').catch(() => ({ data: {} })),
                     api.get('/ai/focus/stats').catch(() => ({ data: {} })),
+                    api.get('/season/current').catch(() => ({ data: null })),
                 ]);
                 setReports(reportsRes.data);
                 setStats({
-                    totalTasks: anaRes.data?.totalTasks || 0,
+                    seasonTasks: seasonRes.data?.seasonTasksCompleted || 0,
+                    seasonTodos: seasonRes.data?.seasonTodosCompleted || 0,
                     streak: anaRes.data?.streak || 0,
                     consistencyScore: advRes.data?.consistency?.score || 0,
                     focusScore: focusRes.data?.focus_score || 0,
@@ -144,7 +146,7 @@ const Reports = () => {
                     <div>
                         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Current League</p>
                         <p className="text-base font-bold leading-none mt-0.5">
-                            {rank.tier.name} {rank.division}
+                            {rank.tier.name}
                             <span className="text-xs font-medium text-muted-foreground ml-2">{rank.score.toLocaleString()} pts</span>
                         </p>
                     </div>
@@ -196,7 +198,7 @@ const Reports = () => {
                                             <CompletionRing rate={report.completion_rate} />
                                             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/60 border border-border/50">
                                                 <RankIcon size={15} className="text-indigo-500" />
-                                                <span className="text-sm font-bold">{rank.tier.name} {rank.division}</span>
+                                                <span className="text-sm font-bold">{rank.tier.name}</span>
                                             </div>
                                         </div>
 

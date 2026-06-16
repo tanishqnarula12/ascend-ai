@@ -3,10 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight, Lock } from 'lucide-react';
 import { TIERS, computeRank, scoreBreakdown, pointsEarnedToday } from '../lib/rank';
 
-const RankModal = ({ isOpen, onClose, stats = {} }) => {
+const RankModal = ({ isOpen, onClose, stats = {}, season }) => {
     if (!isOpen) return null;
 
-    const { score, tier, tierIndex, next, progress, pointsToNext, division } = computeRank(stats);
+    const { score, tier, tierIndex, next, progress, pointsToNext } = computeRank(stats);
     const breakdown = scoreBreakdown(stats);
     const today = pointsEarnedToday(stats);
     const TierIcon = tier.icon;
@@ -33,11 +33,25 @@ const RankModal = ({ isOpen, onClose, stats = {} }) => {
                                 <TierIcon size={40} className="text-white" />
                             </div>
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/80">Your League</p>
-                                <h2 className="text-3xl font-extrabold leading-tight drop-shadow-sm">{tier.name} {division}</h2>
+                                <div className="flex items-center gap-2">
+                                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/80">Your League</p>
+                                    {season && (
+                                        <span className="text-[10px] font-bold uppercase bg-white/20 text-white px-2 py-0.5 rounded-full">
+                                            Season {season.number}
+                                        </span>
+                                    )}
+                                </div>
+                                <h2 className="text-3xl font-extrabold leading-tight drop-shadow-sm">{tier.name}</h2>
                                 <p className="text-sm font-semibold text-white/90 mt-0.5">{score.toLocaleString()} Ascend Points</p>
                             </div>
                         </div>
+
+                        {season && (
+                            <div className="relative z-10 mt-4 flex items-center justify-between text-[11px] font-semibold text-white/80">
+                                <span>Day {season.dayInSeason} of {season.totalDays}</span>
+                                <span>{season.daysRemaining > 0 ? `${season.daysRemaining} days left in Season ${season.number}` : 'Season ending soon'}</span>
+                            </div>
+                        )}
 
                         {/* Progress to next */}
                         <div className="relative z-10 mt-6">

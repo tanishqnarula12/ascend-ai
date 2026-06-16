@@ -31,6 +31,7 @@ const Dashboard = () => {
         focusScore: 0,
         heatmapData: []
     });
+    const [season, setSeason] = useState(null);
     const [insight, setInsight] = useState(null);
     const [motivation, setMotivation] = useState(null);
     const [graphData, setGraphData] = useState([]);
@@ -103,7 +104,7 @@ const Dashboard = () => {
         const fetchDashboardData = async () => {
             try {
                 console.log("[DASHBOARD] Fetching data from all components...");
-                const [tasksRes, aiRes, analyticsRes, advAnalyticsRes, focusRes, motivationRes, habitsRes, todosRes] = await Promise.all([
+                const [tasksRes, aiRes, analyticsRes, advAnalyticsRes, focusRes, motivationRes, habitsRes, todosRes, seasonRes] = await Promise.all([
                     api.get('/tasks?today=true').then(r => { console.log("Tasks loaded"); return r; }).catch(e => { console.warn("Tasks failed", e); return { data: [] }; }),
                     api.get('/ai/insights').then(r => { console.log("Insights loaded"); return r; }).catch(e => { console.warn("Insights failed", e); return { data: { insight: "AI Service unavailable", productivity_score: 0 } }; }),
                     api.get('/goals/analytics').then(r => { console.log("Analytics loaded"); return r; }).catch(e => { console.warn("Analytics failed", e); return { data: { graphData: [], streak: 0 } }; }),
@@ -111,7 +112,8 @@ const Dashboard = () => {
                     api.get('/ai/focus/stats').then(r => { console.log("Focus stats loaded"); return r; }).catch(e => { console.warn("Focus failed", e); return { data: { focus_score: 0, total_hours: 0 } }; }),
                     api.get('/ai/motivation').then(r => { console.log("Motivation loaded"); return r; }).catch(e => { console.warn("Motivation failed", e); return { data: { quote: "Your only limit is your mind.", author: "AscendAI" } }; }),
                     api.get('/tasks/habits/weekly').then(r => { console.log("Habits loaded"); return r; }).catch(e => { console.warn("Habits failed", e); return { data: [] }; }),
-                    api.get('/quick-todos').catch(() => ({ data: [] }))
+                    api.get('/quick-todos').catch(() => ({ data: [] })),
+                    api.get('/season/current').then(r => { console.log("Season loaded"); return r; }).catch(e => { console.warn("Season failed", e); return { data: null }; })
                 ]);
 
                 const tasks = tasksRes?.data || [];
@@ -132,10 +134,14 @@ const Dashboard = () => {
                     focus.focus_score >= 90 // Zen State
                 ].filter(Boolean).length;
 
+                const seasonData = seasonRes?.data || null;
+
                 setStats({
                     completedTasks: completed,
                     pendingTasks: pending,
                     totalTasks: totalCompleted,
+                    seasonTasks: seasonData?.seasonTasksCompleted || 0,
+                    seasonTodos: seasonData?.seasonTodosCompleted || 0,
                     streak: analytics.streak || 0,
                     score: completed * 10,
                     achievements: earnedBadges,
@@ -148,6 +154,7 @@ const Dashboard = () => {
                     focusScore: focus.focus_score || 0,
                     heatmapData: adv.heatmap || []
                 });
+                setSeason(seasonData?.season || null);
 
                 setGraphData(analytics.graphData && analytics.graphData.length > 0
                     ? analytics.graphData
@@ -225,6 +232,10 @@ const Dashboard = () => {
     );
 
     const hasData = stats.completedTasks > 0 || stats.pendingTasks > 0;
+    const todosDone = todos.filter(t => t.done).length;
+    const combinedDone = stats.completedTasks + todosDone;
+    const combinedTotal = stats.completedTasks + stats.pendingTasks + todos.length;
+    const hasTodayData = hasData || todos.length > 0;
     // Short weekday name (e.g. "Mon") to highlight today in the Momentum chain
     const todayShort = new Date().toLocaleDateString('en-US', { weekday: 'short' });
 
@@ -425,10 +436,16 @@ const Dashboard = () => {
                                 <RankIcon size={18} className="text-white" />
                             </div>
                             <div className="min-w-0">
-                                <p className={`text-[11px] font-bold uppercase tracking-widest ${rank.tier.text}`}>League</p>
+                                <div className="flex items-center gap-1.5">
+                                    <p className={`text-[11px] font-bold uppercase tracking-widest ${rank.tier.text}`}>League</p>
+                                    {season && (
+                                        <span className="text-[9px] font-bold uppercase bg-secondary text-muted-foreground px-1.5 py-0.5 rounded-full">
+                                            S{season.number}
+                                        </span>
+                                    )}
+                                </div>
                                 <p className="text-2xl font-bold leading-none mt-1">
                                     {rank.tier.name}
-                                    <span className="text-sm font-medium text-muted-foreground ml-1.5">{rank.division}</span>
                                 </p>
                             </div>
                         </div>
@@ -443,7 +460,7 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Today's Progress */}
+                {/* Today's Progress — tasks + to-dos combined */}
                 <div className="relative h-full flex flex-col bg-card border border-border rounded-2xl p-6 overflow-hidden group hover:border-cyan-500/40 transition-all duration-300">
                     <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 rounded-t-2xl" />
                     <div className="absolute -right-5 -bottom-5 w-24 h-24 bg-cyan-500/5 rounded-full blur-xl group-hover:bg-cyan-500/10 transition-all" />
@@ -455,9 +472,9 @@ const Dashboard = () => {
                             <div className="min-w-0">
                                 <p className="text-[11px] font-bold uppercase tracking-widest text-cyan-500">Today</p>
                                 <p className="text-2xl font-bold leading-none mt-1">
-                                    {stats.completedTasks}
+                                    {combinedDone}
                                     <span className="text-sm font-medium text-muted-foreground ml-1">
-                                        / {stats.completedTasks + stats.pendingTasks} done
+                                        / {combinedTotal} done
                                     </span>
                                 </p>
                             </div>
@@ -466,11 +483,13 @@ const Dashboard = () => {
                             <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full transition-all duration-700"
-                                    style={{ width: `${hasData ? Math.round((stats.completedTasks / (stats.completedTasks + stats.pendingTasks)) * 100) : 0}%` }}
+                                    style={{ width: `${hasTodayData ? Math.round((combinedDone / combinedTotal) * 100) : 0}%` }}
                                 />
                             </div>
                             <p className="text-xs text-muted-foreground mt-2">
-                                {hasData ? `${Math.round((stats.completedTasks / (stats.completedTasks + stats.pendingTasks)) * 100)}% of today's tasks cleared` : "No tasks yet — add one to start."}
+                                {hasTodayData
+                                    ? `${stats.completedTasks}/${stats.completedTasks + stats.pendingTasks} tasks · ${todosDone}/${todos.length} to-dos cleared`
+                                    : "No tasks or to-dos yet — add one to start."}
                             </p>
                         </div>
                     </div>
@@ -772,7 +791,8 @@ const Dashboard = () => {
             <RankModal
                 isOpen={isBadgeModalOpen}
                 onClose={() => setIsBadgeModalOpen(false)}
-                stats={stats}
+                stats={{ ...stats, completedTodos: todosDone }}
+                season={season}
             />
         </div>
     );
