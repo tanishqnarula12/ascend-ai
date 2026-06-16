@@ -9,11 +9,25 @@ const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [statusMessage, setStatusMessage] = useState('');
+
+    const withWakingMessage = async (action) => {
+        const wakeTimer = setTimeout(() => {
+            setStatusMessage('Still working... the server may be waking up from idle, this can take up to a minute.');
+        }, 5000);
+        try {
+            await action();
+        } finally {
+            clearTimeout(wakeTimer);
+            setStatusMessage('');
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError('');
         try {
-            await login(email, password);
+            await withWakingMessage(() => login(email, password));
             navigate('/dashboard');
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to login');
@@ -21,8 +35,9 @@ const Login = () => {
     };
 
     const handleGoogleSuccess = async (credentialResponse) => {
+        setError('');
         try {
-            await googleLogin(credentialResponse.credential);
+            await withWakingMessage(() => googleLogin(credentialResponse.credential));
             navigate('/dashboard');
         } catch (err) {
             setError('Google login failed. Please try again.');
@@ -62,6 +77,7 @@ const Login = () => {
 
                 <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
                     {error && <div className="text-red-500 text-sm text-center">{error}</div>}
+                    {statusMessage && <div className="text-muted-foreground text-sm text-center">{statusMessage}</div>}
                     <div className="space-y-4 rounded-md shadow-sm">
                         <div>
                             <label htmlFor="email-address" className="sr-only">Email address</label>

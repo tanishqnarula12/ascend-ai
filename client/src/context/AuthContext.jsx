@@ -11,6 +11,13 @@ export const AuthProvider = ({ children }) => {
 
 
     useEffect(() => {
+        // Render's free tier spins the backend down when idle, so the first
+        // request after a while can take longer than the login request's own
+        // timeout. Pinging it as soon as the app loads gives it a head start.
+        api.get('/').catch(() => {});
+    }, []);
+
+    useEffect(() => {
         console.log("[AUTH] Initializing state...");
         try {
             const storedToken = localStorage.getItem('token');
