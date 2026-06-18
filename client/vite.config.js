@@ -8,6 +8,12 @@ export default defineConfig({
         react(),
         VitePWA({
             registerType: 'autoUpdate',
+            strategies: 'injectManifest',
+            srcDir: 'src',
+            filename: 'sw.js',
+            injectManifest: {
+                globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+            },
             includeAssets: ['icons/favicon-32.png'],
             manifest: {
                 name: 'AscendAI - Progress Tracker',
@@ -23,10 +29,6 @@ export default defineConfig({
                     { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
                     { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
                 ],
-            },
-            workbox: {
-                globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
-                navigateFallbackDenylist: [/^\/api\//],
             },
         }),
     ],
