@@ -26,6 +26,10 @@ export const calculateConsistencyScore = async (userId) => {
                 SELECT DISTINCT DATE(completed_at) as date
                 FROM tasks
                 WHERE user_id = $1 AND is_completed = true
+                UNION
+                SELECT revival_date as date
+                FROM streak_revival_days
+                WHERE user_id = $1
             ),
             RecentCompletions AS (
                 SELECT date, (CURRENT_DATE - date)::integer as days_ago

@@ -11,6 +11,7 @@ import taskRoutes from './routes/tasks.js';
 import aiRoutes from './routes/ai.js';
 import quickTodoRoutes from './routes/quickTodos.js';
 import seasonRoutes from './routes/season.js';
+import streakRoutes from './routes/streak.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -32,6 +33,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/quick-todos', quickTodoRoutes);
 app.use('/api/season', seasonRoutes);
+app.use('/api/streak', streakRoutes);
 
 app.get('/', (req, res) => {
     res.send('AscendAI Backend is Running!');

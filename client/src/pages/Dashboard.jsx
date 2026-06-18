@@ -32,6 +32,8 @@ const Dashboard = () => {
         heatmapData: []
     });
     const [season, setSeason] = useState(null);
+    const [streakStatus, setStreakStatus] = useState(null);
+    const [isReviving, setIsReviving] = useState(false);
     const [insight, setInsight] = useState(null);
     const [motivation, setMotivation] = useState(null);
     const [graphData, setGraphData] = useState([]);
@@ -76,6 +78,24 @@ const Dashboard = () => {
         }
     };
 
+    const handleReviveStreak = async () => {
+        if (isReviving) return;
+        setIsReviving(true);
+        try {
+            await api.post('/streak/revive');
+            const [analyticsRes, statusRes] = await Promise.all([
+                api.get('/goals/analytics').catch(() => null),
+                api.get('/streak/status').catch(() => null),
+            ]);
+            if (analyticsRes) setStats(prev => ({ ...prev, streak: analyticsRes.data.streak || 0 }));
+            setStreakStatus(statusRes?.data || null);
+        } catch (e) {
+            console.warn('[DASHBOARD] Streak revive failed:', e);
+        } finally {
+            setIsReviving(false);
+        }
+    };
+
     const addTodo = async (e) => {
         e.preventDefault();
         const val = todoInput.trim();
@@ -104,7 +124,7 @@ const Dashboard = () => {
         const fetchDashboardData = async () => {
             try {
                 console.log("[DASHBOARD] Fetching data from all components...");
-                const [tasksRes, aiRes, analyticsRes, advAnalyticsRes, focusRes, motivationRes, habitsRes, todosRes, seasonRes] = await Promise.all([
+                const [tasksRes, aiRes, analyticsRes, advAnalyticsRes, focusRes, motivationRes, habitsRes, todosRes, seasonRes, streakStatusRes] = await Promise.all([
                     api.get('/tasks?today=true').then(r => { console.log("Tasks loaded"); return r; }).catch(e => { console.warn("Tasks failed", e); return { data: [] }; }),
                     api.get('/ai/insights').then(r => { console.log("Insights loaded"); return r; }).catch(e => { console.warn("Insights failed", e); return { data: { insight: "AI Service unavailable", productivity_score: 0 } }; }),
                     api.get('/goals/analytics').then(r => { console.log("Analytics loaded"); return r; }).catch(e => { console.warn("Analytics failed", e); return { data: { graphData: [], streak: 0 } }; }),
@@ -113,7 +133,8 @@ const Dashboard = () => {
                     api.get('/ai/motivation').then(r => { console.log("Motivation loaded"); return r; }).catch(e => { console.warn("Motivation failed", e); return { data: { quote: "Your only limit is your mind.", author: "AscendAI" } }; }),
                     api.get('/tasks/habits/weekly').then(r => { console.log("Habits loaded"); return r; }).catch(e => { console.warn("Habits failed", e); return { data: [] }; }),
                     api.get('/quick-todos').catch(() => ({ data: [] })),
-                    api.get('/season/current').then(r => { console.log("Season loaded"); return r; }).catch(e => { console.warn("Season failed", e); return { data: null }; })
+                    api.get('/season/current').then(r => { console.log("Season loaded"); return r; }).catch(e => { console.warn("Season failed", e); return { data: null }; }),
+                    api.get('/streak/status').catch(() => ({ data: null }))
                 ]);
 
                 const tasks = tasksRes?.data || [];
@@ -155,6 +176,7 @@ const Dashboard = () => {
                     heatmapData: adv.heatmap || []
                 });
                 setSeason(seasonData?.season || null);
+                setStreakStatus(streakStatusRes?.data || null);
 
                 setGraphData(analytics.graphData && analytics.graphData.length > 0
                     ? analytics.graphData
@@ -303,6 +325,29 @@ const Dashboard = () => {
                         <p className="font-bold">{stats.burnoutRisk === 'SEVERE' ? 'Severe' : 'High'} Burnout Risk Detected ({stats.burnoutScore}/100)</p>
                         <p className="text-sm">{stats.burnoutRecommendation || "You've been pushing hard. Consider reducing \"Hard\" tasks today to maintain long-term momentum."}</p>
                     </div>
+                </motion.div>
+            )}
+
+            {streakStatus?.revivable && (
+                <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-orange-600"
+                >
+                    <div className="flex items-center gap-3">
+                        <Flame size={22} className="flex-shrink-0" />
+                        <div>
+                            <p className="font-bold">Your streak broke {streakStatus.gapDays} day{streakStatus.gapDays === 1 ? '' : 's'} ago</p>
+                            <p className="text-sm text-orange-600/80">Revive it now — {streakStatus.remaining} revival left this season.</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleReviveStreak}
+                        disabled={isReviving}
+                        className="bg-orange-500 text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-orange-600 transition-colors disabled:opacity-50 flex-shrink-0"
+                    >
+                        {isReviving ? 'Reviving…' : 'Revive Streak'}
+                    </button>
                 </motion.div>
             )}
 
