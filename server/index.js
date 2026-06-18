@@ -13,8 +13,8 @@ import quickTodoRoutes from './routes/quickTodos.js';
 import seasonRoutes from './routes/season.js';
 import streakRoutes from './routes/streak.js';
 import pushRoutes from './routes/push.js';
-import reminderRoutes from './routes/reminders.js';
-import { runDueReminders } from './controllers/reminderController.js';
+import notificationRoutes from './routes/notifications.js';
+import { runDueNudges } from './controllers/notificationController.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -38,7 +38,7 @@ app.use('/api/quick-todos', quickTodoRoutes);
 app.use('/api/season', seasonRoutes);
 app.use('/api/streak', streakRoutes);
 app.use('/api/push', pushRoutes);
-app.use('/api/reminders', reminderRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/', (req, res) => {
     res.send('AscendAI Backend is Running!');
@@ -48,11 +48,11 @@ app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
 
-// Best-effort: catches due reminders whenever the server happens to be awake.
-// The external cron pinger (POST /api/reminders/check) is the reliable path —
-// this just delivers sooner when the server isn't asleep.
+// Best-effort: sends the 3-hourly pending-tasks nudge whenever the server
+// happens to be awake. The external cron pinger (POST /api/notifications/check)
+// is the reliable path — this just delivers sooner when the server isn't asleep.
 setInterval(() => {
-    runDueReminders().catch(err => console.error('[Reminders] internal check failed:', err));
-}, 60 * 1000);
+    runDueNudges().catch(err => console.error('[Notifications] internal check failed:', err));
+}, 15 * 60 * 1000);
 
 export { pool };

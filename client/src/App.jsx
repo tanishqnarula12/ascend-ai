@@ -10,7 +10,6 @@ import QuickTodo from './pages/QuickTodo';
 import Analytics from './pages/Analytics';
 import Reports from './pages/Reports';
 import Profile from './pages/Profile';
-import Reminders from './pages/Reminders';
 import Layout from './components/Layout';
 
 const ProtectedLayout = () => {
@@ -43,7 +42,6 @@ function App() {
                         <Route path="/todo" element={<QuickTodo />} />
                         <Route path="/analytics" element={<Analytics />} />
                         <Route path="/reports" element={<Reports />} />
-                        <Route path="/reminders" element={<Reminders />} />
                         <Route path="/profile" element={<Profile />} />
                     </Route>
 

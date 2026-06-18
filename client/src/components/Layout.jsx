@@ -1,6 +1,7 @@
 import React from 'react';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
+import NotificationBell from './NotificationBell';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -17,8 +18,9 @@ const Layout = () => {
                 <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-sky-400/20 via-background to-background pointer-events-none opacity-50 print:hidden"></div>
 
                 {/* Top header right for Profile Info */}
-                <div className="w-full flex justify-end px-4 py-3 md:px-8 md:pt-6 md:pb-2 sticky top-0 z-40 bg-background/60 backdrop-blur-md md:bg-transparent md:backdrop-blur-none print:hidden">
-                    <div 
+                <div className="w-full flex items-center justify-end gap-3 px-4 py-3 md:px-8 md:pt-6 md:pb-2 sticky top-0 z-40 bg-background/60 backdrop-blur-md md:bg-transparent md:backdrop-blur-none print:hidden">
+                    <NotificationBell />
+                    <div
                         onClick={() => navigate('/profile')}
                         className="cursor-pointer flex items-center gap-3 bg-card border border-border pl-4 pr-1.5 py-1.5 rounded-full shadow-sm hover:shadow-md transition-all hover:border-primary/50"
                     >
