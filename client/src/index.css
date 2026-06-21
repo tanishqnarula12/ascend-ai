@@ -62,6 +62,9 @@
     * {
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
+      transform: none !important;
+      transition: none !important;
+      animation: none !important;
     }
 
     @page {
@@ -73,6 +76,15 @@
       height: auto !important;
       overflow: visible !important;
       background: #fff !important;
+    }
+
+    /* Ensure layout main container is correctly displayed and sized for print */
+    main {
+      height: auto !important;
+      overflow: visible !important;
+      display: block !important;
+      padding: 0 !important;
+      margin: 0 !important;
     }
 
     html.dark {

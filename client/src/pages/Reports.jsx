@@ -172,7 +172,7 @@ const Reports = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.05 }}
                                 key={i}
-                                className={`bg-card rounded-2xl border border-border overflow-hidden transition-colors hover:border-foreground/20 break-inside-avoid print:shadow-none print:border-slate-300 ${hidden ? 'print:hidden' : ''}`}
+                                className={`bg-card rounded-2xl border border-border overflow-hidden print:overflow-visible transition-colors hover:border-foreground/20 print:break-inside-auto print:shadow-none print:border-slate-300 ${hidden ? 'print:hidden' : ''}`}
                             >
                                 <div className="h-1 bg-indigo-500" />
                                 <div className="p-6 md:p-8">
@@ -193,7 +193,7 @@ const Reports = () => {
                                     </div>
 
                                     {/* Hero: ring + league + summary */}
-                                    <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start">
+                                    <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start print:break-inside-avoid">
                                         <div className="flex flex-col items-center gap-3">
                                             <CompletionRing rate={report.completion_rate} />
                                             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/60 border border-border/50">
@@ -218,7 +218,7 @@ const Reports = () => {
                                     </div>
 
                                     {/* Goal insights + burnout */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 print:break-inside-avoid">
                                         <div className="p-5 border border-border rounded-xl">
                                             <h4 className="font-bold flex items-center gap-2 mb-3 text-sm">
                                                 <Target className="text-indigo-500" size={16} /> Goal Insights
@@ -255,11 +255,11 @@ const Reports = () => {
 
                                     {/* Embedded Habit Matrix */}
                                     {report.habit_matrix && report.habit_matrix.length > 0 && (
-                                        <div className="mt-6 border-t border-border pt-6">
+                                        <div className="mt-6 border-t border-border pt-6 print:break-inside-avoid">
                                             <h4 className="font-bold flex items-center gap-2 mb-4 text-sm">
                                                 <CheckCircle size={16} className="text-muted-foreground" /> Permanent Task Snapshot
                                             </h4>
-                                            <div className="overflow-x-auto">
+                                            <div className="overflow-x-auto print:overflow-visible">
                                                 <table className="w-full text-left text-sm">
                                                     <thead>
                                                         <tr>
