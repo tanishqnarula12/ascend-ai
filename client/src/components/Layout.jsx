@@ -1,7 +1,6 @@
 import React from 'react';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
-import NotificationBell from './NotificationBell';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -19,7 +18,6 @@ const Layout = () => {
 
                 {/* Top header right for Profile Info */}
                 <div className="w-full flex items-center justify-end gap-3 px-4 py-3 md:px-8 md:pt-6 md:pb-2 sticky top-0 z-40 bg-background/60 backdrop-blur-md md:bg-transparent md:backdrop-blur-none print:hidden">
-                    <NotificationBell />
                     <div
                         onClick={() => navigate('/profile')}
                         className="cursor-pointer flex items-center gap-3 bg-card border border-border pl-4 pr-1.5 py-1.5 rounded-full shadow-sm hover:shadow-md transition-all hover:border-primary/50"

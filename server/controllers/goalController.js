@@ -1,6 +1,7 @@
 import { query } from '../config/db.js';
 import { fetchWithTimeout } from '../utils/fetchWithTimeout.js';
 import { getBurnoutRisk } from '../services/analyticsService.js';
+import { sendPushToUser } from '../utils/push.js';
 
 export const getReports = async (req, res) => {
     try {
@@ -127,6 +128,14 @@ export const getReports = async (req, res) => {
                     JSON.stringify(matrix)
                 ]
             );
+
+            // Fire-and-forget: don't make the user wait on push delivery for their response.
+            sendPushToUser(req.user.id, {
+                title: 'AscendAI',
+                body: 'Your weekly AI-analysed goal report is ready — tap to view.',
+                url: '/reports',
+            }).catch(err => console.error('[Reports] push notify failed:', err));
+
             return res.json([newReport.rows[0], ...reports.rows]);
         }
 

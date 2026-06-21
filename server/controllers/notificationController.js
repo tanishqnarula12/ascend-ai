@@ -1,5 +1,5 @@
-import webpush from 'web-push';
 import { query } from '../config/db.js';
+import { sendPushToUser } from '../utils/push.js';
 
 const NUDGE_INTERVAL_HOURS = 3;
 
@@ -12,36 +12,6 @@ const ensureTable = async () => {
     `);
 };
 ensureTable().catch(err => console.error('[Notifications] Table init failed:', err));
-
-if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-    webpush.setVapidDetails(
-        process.env.VAPID_SUBJECT || 'mailto:tanishqnarula60@gmail.com',
-        process.env.VAPID_PUBLIC_KEY,
-        process.env.VAPID_PRIVATE_KEY
-    );
-} else {
-    console.warn('[Notifications] VAPID keys not set — push notifications will not be sent.');
-}
-
-// Sends a push to every subscription a user holds (multiple devices), pruning
-// subscriptions the browser has revoked (404/410 from the push service).
-const deliverToUser = async (userId, payload) => {
-    const subsRes = await query('SELECT id, subscription FROM push_subscriptions WHERE user_id = $1', [userId]);
-    let delivered = 0;
-    for (const sub of subsRes.rows) {
-        try {
-            await webpush.sendNotification(sub.subscription, JSON.stringify(payload));
-            delivered++;
-        } catch (err) {
-            if (err.statusCode === 404 || err.statusCode === 410) {
-                await query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
-            } else {
-                console.error('[Notifications] push send failed:', err.message);
-            }
-        }
-    }
-    return delivered;
-};
 
 const hasPendingWork = async (userId) => {
     const result = await query(
@@ -79,7 +49,7 @@ export const runDueNudges = async () => {
         checked++;
         if (!(await hasPendingWork(user_id))) continue;
 
-        const sent = await deliverToUser(user_id, {
+        const sent = await sendPushToUser(user_id, {
             title: 'AscendAI',
             body: 'You have pending tasks waiting — tap to open AscendAI.',
             url: '/dashboard',

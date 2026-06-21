@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Mail, Shield, Key, Camera, Check, Brain, Sparkles, Calendar, Activity, Flame, Skull } from 'lucide-react';
+import { User, Mail, Shield, Camera, Check, Brain, Sparkles, Calendar, Activity, Flame, Skull, Bell } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { isPushSupported, getPushSubscriptionState, subscribeToPush, unsubscribeFromPush } from '../lib/push';
 
 // Expressiveness presets for the Reality Check. Brutal unleashes uncensored profanity;
 // Normal and Hard tone it down for users who don't want the swearing.
@@ -24,6 +25,36 @@ const Profile = () => {
     const [expressLevel, setExpressLevel] = useState('brutal');
     const [verdict, setVerdict] = useState(null);
     const [verdictLoading, setVerdictLoading] = useState(false);
+
+    // Push notification toggle state
+    const [pushState, setPushState] = useState('checking');
+    const [pushBusy, setPushBusy] = useState(false);
+
+    useEffect(() => {
+        if (isPushSupported()) {
+            getPushSubscriptionState().then(setPushState).catch(() => setPushState('unsupported'));
+        } else {
+            setPushState('unsupported');
+        }
+    }, []);
+
+    const toggleNotifications = async () => {
+        if (pushBusy || pushState === 'denied') return;
+        setPushBusy(true);
+        try {
+            if (pushState === 'subscribed') {
+                await unsubscribeFromPush();
+                setPushState('unsubscribed');
+            } else {
+                await subscribeToPush();
+                setPushState('subscribed');
+            }
+        } catch {
+            setPushState(Notification.permission === 'denied' ? 'denied' : 'unsubscribed');
+        } finally {
+            setPushBusy(false);
+        }
+    };
 
     const runRealityCheck = async () => {
         setVerdictLoading(true);
@@ -137,59 +168,67 @@ const Profile = () => {
         return templates[Math.floor(Math.random() * templates.length)];
     }, [currentUser?.username]);
 
+    const notificationCopy = {
+        subscribed: { label: 'On', hint: 'You\'ll get notified about pending tasks & new reports.' },
+        unsubscribed: { label: 'Off', hint: 'Turn on to get notified about pending tasks & new reports.' },
+        denied: { label: 'Blocked', hint: 'Allow notifications for this site in your browser settings.' },
+        unsupported: { label: 'Unavailable', hint: 'Not supported on this browser/device.' },
+        checking: { label: '…', hint: '' },
+    };
+    const notifCopy = notificationCopy[pushState] || notificationCopy.unsubscribed;
+
     return (
         <div className="w-full pb-8">
             {/* Header Banner */}
-            <div className="w-full h-32 md:h-48 rounded-2xl bg-gradient-to-r from-primary/20 via-primary/5 to-background border border-border/50 relative mb-16 md:mb-20 shadow-sm overflow-hidden">
+            <div className="w-full h-28 md:h-40 rounded-2xl bg-gradient-to-r from-primary/20 via-primary/5 to-background border border-border/50 relative shadow-sm overflow-hidden">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-sky-400/10 via-transparent to-transparent opacity-50"></div>
-                {/* Fixed Overlap: Moved title to top left instead of bottom left */}
-                <div className="absolute top-4 left-6 md:top-6 md:left-8 hidden md:block">
-                    <h1 className="text-3xl font-bold text-foreground tracking-tight flex items-center gap-2">
+                <div className="absolute top-5 left-6 md:top-7 md:left-8">
+                    <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
                         Profile Details
                     </h1>
                 </div>
             </div>
 
-            <div className="max-w-6xl mx-auto px-2 sm:px-6 relative z-10 w-full -mt-24 md:-mt-36">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
-                    
+            <div className="max-w-6xl mx-auto px-2 sm:px-6 relative z-10 w-full">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start -mt-12 md:-mt-16">
+
                     {/* Left Column - Profile Identity & Status */}
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="lg:col-span-4 flex flex-col items-center lg:items-start mb-2 lg:mb-0"
+                        className="lg:col-span-4 flex flex-col items-center lg:items-start"
                     >
                         {/* Avatar */}
-                        <div className="relative group cursor-pointer mb-5 ml-0 lg:ml-4" onClick={handlePhotoClick}>
-                            <input 
-                                type="file" 
-                                ref={fileInputRef} 
-                                className="hidden" 
-                                accept="image/*" 
-                                onChange={handlePhotoChange} 
+                        <div className="relative group cursor-pointer mb-4" onClick={handlePhotoClick}>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                accept="image/*"
+                                onChange={handlePhotoChange}
                             />
-                            <div className="w-32 h-32 md:w-36 md:h-36 bg-secondary text-primary rounded-full flex items-center justify-center text-5xl md:text-6xl font-bold border-[6px] border-background shadow-xl overflow-hidden relative z-10">
+                            <div className="w-28 h-28 md:w-32 md:h-32 bg-secondary text-primary rounded-full flex items-center justify-center text-4xl md:text-5xl font-bold border-[5px] border-background shadow-xl overflow-hidden relative z-10">
                                 {currentUser?.photoUrl ? (
                                     <img src={currentUser.photoUrl} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : (
                                     currentUser?.username?.charAt(0).toUpperCase() || 'U'
                                 )}
                                 <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full z-20 backdrop-blur-sm">
-                                    <Camera className="text-white w-8 h-8 mb-1" />
+                                    <Camera className="text-white w-7 h-7 mb-1" />
                                     <span className="text-[10px] text-white font-medium uppercase tracking-wider">Change photo</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="text-center lg:text-left lg:ml-4 w-full">
-                            <h2 className="text-2xl font-bold text-foreground mb-1">{currentUser?.username || 'User'}</h2>
-                            <div className="inline-block bg-secondary/50 px-3 py-1 rounded-full mb-6">
-                                <p className="text-sm text-muted-foreground font-medium flex items-center gap-2"><Mail size={14}/> {currentUser?.email || 'No email provided'}</p>
+                        <div className="text-center lg:text-left w-full">
+                            <h2 className="text-xl md:text-2xl font-bold text-foreground mb-1.5">{currentUser?.username || 'User'}</h2>
+                            <div className="inline-flex bg-secondary/50 px-3 py-1 rounded-full mb-5">
+                                <p className="text-sm text-muted-foreground font-medium flex items-center gap-2"><Mail size={14} /> {currentUser?.email || 'No email provided'}</p>
                             </div>
-                            
+
                             <div className="w-full bg-card border border-border rounded-xl p-5 shadow-sm space-y-4">
                                 <h3 className="font-semibold text-foreground border-b border-border pb-2 mb-3 text-xs uppercase tracking-wider flex items-center gap-2">
-                                    <Shield size={16} className="text-primary"/> Account Status
+                                    <Shield size={16} className="text-primary" /> Account Status
                                 </h3>
                                 <div className="flex justify-between items-center text-sm">
                                     <span className="text-muted-foreground">Status</span>
@@ -200,19 +239,43 @@ const Profile = () => {
                                 <div className="flex justify-between items-center text-sm">
                                     <span className="text-muted-foreground">Member Since</span>
                                     <span className="text-foreground font-medium flex items-center gap-1.5">
-                                        <Calendar size={14} className="text-muted-foreground"/> {dateJoined}
+                                        <Calendar size={14} className="text-muted-foreground" /> {dateJoined}
                                     </span>
                                 </div>
                             </div>
+
+                            {pushState !== 'unsupported' && pushState !== 'checking' && (
+                                <div className="w-full bg-card border border-border rounded-xl p-5 shadow-sm mt-4">
+                                    <h3 className="font-semibold text-foreground border-b border-border pb-2 mb-3 text-xs uppercase tracking-wider flex items-center gap-2">
+                                        <Bell size={16} className="text-primary" /> Notifications
+                                    </h3>
+                                    <div className="flex justify-between items-center gap-3">
+                                        <div className="text-left">
+                                            <p className="text-sm font-medium text-foreground">Push Notifications</p>
+                                            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{notifCopy.hint}</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={toggleNotifications}
+                                            disabled={pushBusy || pushState === 'denied'}
+                                            aria-pressed={pushState === 'subscribed'}
+                                            aria-label="Toggle push notifications"
+                                            className={`relative w-11 h-6 rounded-full shrink-0 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${pushState === 'subscribed' ? 'bg-primary' : 'bg-secondary'}`}
+                                        >
+                                            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${pushState === 'subscribed' ? 'translate-x-5' : ''}`} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </motion.div>
 
                     {/* Right Column - Forms & AI Section */}
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
-                        className="lg:col-span-8 space-y-6 lg:mt-28"
+                        className="lg:col-span-8 space-y-6 lg:mt-20"
                     >
                         {/* Editor Section */}
                         <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
