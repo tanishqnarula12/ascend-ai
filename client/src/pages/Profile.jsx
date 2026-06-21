@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Mail, Shield, Camera, Check, Brain, Sparkles, Calendar, Activity, Flame, Skull, Bell } from 'lucide-react';
+import { User, Shield, Camera, Check, Brain, Sparkles, Calendar, Activity, Flame, Skull, Bell } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { isPushSupported, getPushSubscriptionState, subscribeToPush, unsubscribeFromPush } from '../lib/push';
 
@@ -221,10 +221,7 @@ const Profile = () => {
                         </div>
 
                         <div className="text-center lg:text-left w-full">
-                            <h2 className="text-xl md:text-2xl font-bold text-foreground mb-1.5">{currentUser?.username || 'User'}</h2>
-                            <div className="inline-flex bg-secondary/50 px-3 py-1 rounded-full mb-5">
-                                <p className="text-sm text-muted-foreground font-medium flex items-center gap-2"><Mail size={14} /> {currentUser?.email || 'No email provided'}</p>
-                            </div>
+                            <h2 className="text-xl md:text-2xl font-bold text-foreground mb-5">{currentUser?.username || 'User'}</h2>
 
                             <div className="w-full bg-card border border-border rounded-xl p-5 shadow-sm space-y-4">
                                 <h3 className="font-semibold text-foreground border-b border-border pb-2 mb-3 text-xs uppercase tracking-wider flex items-center gap-2">
