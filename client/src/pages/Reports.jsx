@@ -4,6 +4,7 @@ import { FileText, Download, Calendar, Target, AlertTriangle, Lightbulb, CheckCi
 import { motion } from 'framer-motion';
 import { computeRank } from '../lib/rank';
 import logo from '../assets/logo.png';
+import { useAuth } from '../context/AuthContext';
 
 // Burnout keeps a semantic accent (it conveys real risk) but sits in a neutral box.
 const burnoutAccent = (risk) => {
@@ -53,6 +54,7 @@ const Tile = ({ label, value, unit, icon: Icon, color }) => (
 );
 
 const Reports = () => {
+    const { currentUser } = useAuth();
     const [reports, setReports] = useState([]);
     const [stats, setStats] = useState({});
     const [loading, setLoading] = useState(true);
@@ -88,11 +90,23 @@ const Reports = () => {
     // Export only the clicked report: mark it, let the print: classes apply, then print.
     useEffect(() => {
         if (printId === null) return;
-        const after = () => setPrintId(null);
+        const originalTitle = document.title;
+        const username = currentUser?.username || 'user';
+        const dateStr = new Date().toISOString().split('T')[0];
+        document.title = `goal_report_${username}_generated_on_${dateStr}`;
+
+        const after = () => {
+            document.title = originalTitle;
+            setPrintId(null);
+        };
         window.addEventListener('afterprint', after);
         const t = setTimeout(() => window.print(), 80);
-        return () => { clearTimeout(t); window.removeEventListener('afterprint', after); };
-    }, [printId]);
+        return () => {
+            clearTimeout(t);
+            window.removeEventListener('afterprint', after);
+            document.title = originalTitle;
+        };
+    }, [printId, currentUser]);
 
     const handleExport = (i) => setPrintId(i);
 
