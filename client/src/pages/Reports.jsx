@@ -172,12 +172,12 @@ const Reports = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.05 }}
                                 key={i}
-                                className={`bg-card rounded-2xl border border-border overflow-hidden print:overflow-visible transition-colors hover:border-foreground/20 print:break-inside-auto print:shadow-none print:border-slate-300 ${hidden ? 'print:hidden' : ''}`}
+                                className={`bg-card rounded-2xl border border-border overflow-hidden print:overflow-visible transition-colors hover:border-foreground/20 print:bg-transparent print:border-none print:p-0 print:break-inside-auto ${hidden ? 'print:hidden' : ''}`}
                             >
-                                <div className="h-1 bg-indigo-500" />
-                                <div className="p-6 md:p-8">
+                                <div className="h-1 bg-indigo-500 print:hidden" />
+                                <div className="p-6 md:p-8 print:p-0">
                                     {/* Top row: date + actions */}
-                                    <div className="flex items-center justify-between mb-6">
+                                    <div className="flex items-center justify-between mb-6 print:mb-4">
                                         <div className="inline-flex items-center gap-2 text-sm font-semibold bg-secondary/60 px-3 py-1.5 rounded-full">
                                             <Calendar size={14} className="text-muted-foreground" />
                                             <span>{new Date(report.start_date).toLocaleDateString()} – {new Date(report.end_date).toLocaleDateString()}</span>
@@ -193,7 +193,7 @@ const Reports = () => {
                                     </div>
 
                                     {/* Hero: ring + league + summary */}
-                                    <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start print:break-inside-avoid">
+                                    <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start print:break-inside-avoid print:bg-card print:border print:border-slate-300 print:rounded-2xl print:p-6 print:mb-4">
                                         <div className="flex flex-col items-center gap-3">
                                             <CompletionRing rate={report.completion_rate} />
                                             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/60 border border-border/50">
@@ -218,7 +218,7 @@ const Reports = () => {
                                     </div>
 
                                     {/* Goal insights + burnout */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 print:break-inside-avoid">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 print:mt-0 print:break-inside-avoid print:mb-4">
                                         <div className="p-5 border border-border rounded-xl">
                                             <h4 className="font-bold flex items-center gap-2 mb-3 text-sm">
                                                 <Target className="text-indigo-500" size={16} /> Goal Insights
@@ -255,7 +255,7 @@ const Reports = () => {
 
                                     {/* Embedded Habit Matrix */}
                                     {report.habit_matrix && report.habit_matrix.length > 0 && (
-                                        <div className="mt-6 border-t border-border pt-6 print:break-inside-avoid">
+                                        <div className="mt-6 border-t border-border pt-6 print:mt-0 print:border-t-0 print:pt-0 print:border print:border-slate-300 print:rounded-2xl print:p-6 print:break-inside-avoid">
                                             <h4 className="font-bold flex items-center gap-2 mb-4 text-sm">
                                                 <CheckCircle size={16} className="text-muted-foreground" /> Permanent Task Snapshot
                                             </h4>
